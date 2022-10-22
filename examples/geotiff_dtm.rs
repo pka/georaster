@@ -1,10 +1,11 @@
+use georaster::geotiff::GeoTiffReader;
 use std::fs::File;
-use tiff::decoder::{Decoder, DecodingResult};
-use tiff::ColorType;
+use std::io::BufReader;
 
-fn read_dtm() {
-    let img_file = File::open("data/N265E425.tif").expect("Cannot find test image!");
-    let mut decoder = Decoder::new(img_file).expect("Cannot create decoder");
+fn main() {
+    let img_file =
+        BufReader::new(File::open("data/N265E425.tif").expect("Cannot find test image!"));
+    let mut reader = GeoTiffReader::open(img_file).expect("Cannot create decoder");
     // Decoder {
     //     reader: SmartReader {
     //         reader: File {
@@ -287,24 +288,6 @@ fn read_dtm() {
     //         ],
     //     },
     // }
-    assert_eq!(decoder.colortype().unwrap(), ColorType::Gray(16));
 
-    let tiles = decoder.tile_count().unwrap();
-    assert_eq!(tiles as usize, 100);
-
-    for tile in 0..tiles {
-        match decoder.read_chunk(tile).unwrap() {
-            DecodingResult::U16(res) => {
-                let sum: u64 = res.into_iter().map(<u64>::from).sum();
-                if tile == 0 {
-                    assert_eq!(sum, 173214606);
-                }
-            }
-            _ => panic!("Wrong bit depth"),
-        }
-    }
-}
-
-fn main() {
-    read_dtm();
+    reader.read_dtm();
 }

@@ -1,12 +1,11 @@
+use georaster::geotiff::GeoTiffReader;
 use std::fs::File;
-use tiff::decoder::{Decoder, DecodingResult};
-use tiff::tags::Tag;
-use tiff::ColorType;
+use std::io::BufReader;
 
-fn read_cog() {
+fn main() {
     // https://gdal.org/drivers/raster/cog.html
-    let img_file = File::open("imagery/seen.tif").expect("Cannot find test image!");
-    let mut decoder = Decoder::new(img_file).expect("Cannot create decoder");
+    let img_file = BufReader::new(File::open("imagery/seen.tif").expect("Cannot find test image!"));
+    let mut reader = GeoTiffReader::open(img_file).expect("Cannot create decoder");
     // Decoder {
     //     reader: SmartReader {
     //         reader: File {
@@ -106,47 +105,6 @@ fn read_cog() {
     //         ],
     //     }
     // }
-    dbg!(&decoder);
-    dbg!(decoder.dimensions().unwrap());
-    if let Ok(geokeys) = decoder.get_tag_u32_vec(Tag::GeoKeyDirectoryTag) {
-        dbg!(geokeys);
-    }
-    if let Ok(geo_params) = decoder.get_tag_ascii_string(Tag::GeoAsciiParamsTag) {
-        dbg!(geo_params);
-    }
-    if let Ok(model_tiepoint) = decoder.get_tag_f64_vec(Tag::ModelTiepointTag) {
-        dbg!(model_tiepoint);
-    }
-    if let Ok(model_pixel_scale) = decoder.get_tag_f64_vec(Tag::ModelPixelScaleTag) {
-        dbg!(model_pixel_scale);
-    }
 
-    assert_eq!(decoder.colortype().unwrap(), ColorType::RGB(8));
-
-    let tiles = decoder.tile_count().unwrap();
-    dbg!(tiles);
-    dbg!(decoder.chunk_dimensions());
-
-    for tile in 0..tiles {
-        // tiles in row major order
-        dbg!(decoder.chunk_data_dimensions(tile));
-        match decoder.read_chunk(tile).unwrap() {
-            DecodingResult::U8(res) => {
-                let _sum: u64 = res.into_iter().map(<u64>::from).sum();
-            }
-            _ => panic!("Wrong bit depth"),
-        }
-    }
-
-    while decoder.more_images() {
-        decoder.next_image().unwrap();
-        dbg!(decoder.dimensions().unwrap());
-        if let Ok(subfile_type) = decoder.get_tag_u64(Tag::NewSubfileType) {
-            dbg!(subfile_type);
-        }
-    }
-}
-
-fn main() {
-    read_cog();
+    reader.read_cog();
 }

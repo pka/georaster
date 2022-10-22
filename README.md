@@ -1,7 +1,7 @@
 georaster
 =========
 
-Rust libarary for accessing geospatial raster images.
+Rust library for accessing geospatial raster images.
 
 
 ## Running the examples
