@@ -5,7 +5,7 @@ use std::io::BufReader;
 fn main() {
     // https://gdal.org/drivers/raster/cog.html
     let img_file = BufReader::new(File::open("imagery/seen.tif").expect("Cannot find test image!"));
-    let mut reader = GeoTiffReader::open(img_file).expect("Cannot create decoder");
+    let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
     // Decoder {
     //     reader: SmartReader {
     //         reader: File {
@@ -106,5 +106,7 @@ fn main() {
     //     }
     // }
 
-    reader.read_cog();
+    assert_eq!(tiff.colortype(), Some(tiff::ColorType::RGB(8)));
+
+    tiff.read_cog();
 }

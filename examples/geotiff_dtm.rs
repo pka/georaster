@@ -5,7 +5,7 @@ use std::io::BufReader;
 fn main() {
     let img_file =
         BufReader::new(File::open("data/N265E425.tif").expect("Cannot find test image!"));
-    let mut reader = GeoTiffReader::open(img_file).expect("Cannot create decoder");
+    let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
     // Decoder {
     //     reader: SmartReader {
     //         reader: File {
@@ -289,5 +289,14 @@ fn main() {
     //     },
     // }
 
-    reader.read_dtm();
+    assert_eq!(tiff.dimensions(), (5000, 5000));
+    assert_eq!(tiff.colortype(), Some(tiff::ColorType::Gray(16)));
+    assert_eq!(tiff.origin(), Some([4250000.0, 2700000.0]));
+    assert_eq!(tiff.pixel_size(), Some([10.0, -10.0]));
+    assert_eq!(
+        tiff.geo_params,
+        Some("ETRS89_ETRS_LAEA|ETRS89|".to_string())
+    );
+
+    tiff.read_dtm();
 }
