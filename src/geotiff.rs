@@ -63,54 +63,39 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         }
     }
 
-    /// Return tile or stripe index containing a pixel
-    fn get_chunk_index(&self, x: u64, y: u64) -> u32 {
-        /// Computed values useful for tile decoding
-        // struct TileAttributes {
-        //     pub image_width: usize,
-        //     pub image_height: usize,
+    /// Return tile or stripe index + offset of a pixel
+    fn get_chunk_index(&mut self, x: u64, y: u64) -> (u32, usize) {
+        let (image_width, image_height) = self.dimensions();
+        let (tile_width, tile_length) = self.decoder.chunk_dimensions();
+        let attrs = TileAttributes {
+            image_width: image_width as usize,
+            image_height: image_height as usize,
+            tile_width: tile_width as usize,
+            tile_length: tile_length as usize,
+        };
+        let x_chunks = x as usize / attrs.tile_width;
+        let y_chunks = y as usize / attrs.tile_length;
+        let chunk_index = y_chunks * attrs.tiles_across() + x_chunks;
 
-        //     pub tile_width: usize,
-        //     pub tile_length: usize,
-        // }
+        let x_offset = x as usize % attrs.tile_width;
+        let y_offset = y as usize % attrs.tile_length;
+        let offset = y_offset * attrs.tile_width + x_offset;
 
-        // impl TileAttributes {
-        //     pub fn tiles_across(&self) -> usize {
-        //         (self.image_width + self.tile_width - 1) / self.tile_width
-        //     }
-        //     pub fn tiles_down(&self) -> usize {
-        //         (self.image_height + self.tile_length - 1) / self.tile_length
-        //     }
-        //     fn padding_right(&self) -> usize {
-        //         self.tile_width - self.image_width % self.tile_width
-        //     }
-        //     fn padding_down(&self) -> usize {
-        //         self.tile_length - self.image_height % self.tile_length
-        //     }
+        (chunk_index as u32, offset)
+    }
 
-        //     pub fn get_padding(&self, tile: usize) -> (usize, usize) {
-        //         let row = tile / self.tiles_across();
-        //         let column = tile % self.tiles_across();
-
-        //         let padding_right = if column == self.tiles_across() - 1 {
-        //             self.padding_right()
-        //         } else {
-        //             0
-        //         };
-
-        //         let padding_down = if row == self.tiles_down() - 1 {
-        //             self.padding_down()
-        //         } else {
-        //             0
-        //         };
-
-        //         (padding_right, padding_down)
-        //     }
-        // }
-        todo!()
+    pub fn read_pixel(&mut self, x: u64, y: u64) -> u16 {
+        let (chunk_index, offset) = self.get_chunk_index(x, y);
+        match self.decoder.read_chunk(chunk_index).unwrap() {
+            DecodingResult::U16(chunk) => chunk[offset],
+            _ => panic!("Wrong bit depth"),
+        }
     }
 
     pub fn read_cog(&mut self) {
+        // Good format description:
+        // https://medium.com/planet-stories/reading-a-single-tiff-pixel-without-any-tiff-tools-fcbd43d8bd24
+
         let tiles = self.decoder.tile_count().unwrap();
         dbg!(tiles);
         dbg!(self.decoder.chunk_dimensions());
@@ -134,17 +119,48 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
             }
         }
     }
+}
 
-    pub fn read_dtm(&mut self) {
-        let tiles = self.decoder.tile_count().unwrap();
+// Tile calculation helper from image-tiff
+/// Computed values useful for tile decoding
+pub(crate) struct TileAttributes {
+    pub image_width: usize,
+    pub image_height: usize,
 
-        for tile in 0..tiles {
-            match self.decoder.read_chunk(tile).unwrap() {
-                DecodingResult::U16(res) => {
-                    let _sum: u64 = res.into_iter().map(<u64>::from).sum();
-                }
-                _ => panic!("Wrong bit depth"),
-            }
-        }
+    pub tile_width: usize,
+    pub tile_length: usize,
+}
+
+impl TileAttributes {
+    pub fn tiles_across(&self) -> usize {
+        (self.image_width + self.tile_width - 1) / self.tile_width
+    }
+    pub fn tiles_down(&self) -> usize {
+        (self.image_height + self.tile_length - 1) / self.tile_length
+    }
+    fn padding_right(&self) -> usize {
+        self.tile_width - self.image_width % self.tile_width
+    }
+    fn padding_down(&self) -> usize {
+        self.tile_length - self.image_height % self.tile_length
+    }
+
+    pub fn get_padding(&self, tile: usize) -> (usize, usize) {
+        let row = tile / self.tiles_across();
+        let column = tile % self.tiles_across();
+
+        let padding_right = if column == self.tiles_across() - 1 {
+            self.padding_right()
+        } else {
+            0
+        };
+
+        let padding_down = if row == self.tiles_down() - 1 {
+            self.padding_down()
+        } else {
+            0
+        };
+
+        (padding_right, padding_down)
     }
 }

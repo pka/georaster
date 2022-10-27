@@ -298,5 +298,12 @@ fn main() {
         Some("ETRS89_ETRS_LAEA|ETRS89|".to_string())
     );
 
-    tiff.read_dtm();
+    // convert -quiet data/N265E425.tif[0] -crop 1x1+0+0 -depth 16 txt:
+    assert_eq!(tiff.read_pixel(0, 0), 636);
+    // convert -quiet data/N265E425.tif[0] -crop 1x1+4000+3000 -depth 16 txt:
+    assert_eq!(tiff.read_pixel(4000, 3000), 1306);
+    // x > width
+    // assert_eq!(tiff.read_pixel(5000, 3000), 0); // TODO: index out of bounds
+    // y > height
+    // assert_eq!(tiff.read_pixel(4000, 5000), 0); // TODO: index out of bounds
 }
