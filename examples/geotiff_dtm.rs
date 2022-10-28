@@ -1,4 +1,4 @@
-use georaster::geotiff::GeoTiffReader;
+use georaster::geotiff::{GeoTiffReader, RasterValue};
 use std::fs::File;
 use std::io::BufReader;
 
@@ -299,11 +299,53 @@ fn main() {
     );
 
     // convert -quiet data/N265E425.tif[0] -crop 1x1+0+0 -depth 16 txt:
-    assert_eq!(tiff.read_pixel(0, 0), 636);
+    assert_eq!(tiff.read_pixel(0, 0), RasterValue::U16(636));
     // convert -quiet data/N265E425.tif[0] -crop 1x1+4000+3000 -depth 16 txt:
-    assert_eq!(tiff.read_pixel(4000, 3000), 1306);
+    assert_eq!(tiff.read_pixel(4000, 3000), RasterValue::U16(1306));
     // x > width
-    // assert_eq!(tiff.read_pixel(5000, 3000), 0); // TODO: index out of bounds
+    assert_eq!(tiff.read_pixel(5000, 3000), RasterValue::NoData);
     // y > height
-    // assert_eq!(tiff.read_pixel(4000, 5000), 0); // TODO: index out of bounds
+    assert_eq!(tiff.read_pixel(4000, 5000), RasterValue::NoData);
+    // convert -quiet data/N265E425.tif[0] -crop 2x2+511+511 -depth 16 txt:
+    // 0,0: 680
+    // 1,0: 684
+    // 0,1: 681
+    // 1,1: 685
+    let mut pixels = tiff.pixels(511, 511, 2, 2);
+    assert_eq!(pixels.next(), Some((511, 511, RasterValue::U16(680))));
+    assert_eq!(pixels.next(), Some((512, 511, RasterValue::U16(684))));
+    assert_eq!(pixels.next(), Some((511, 512, RasterValue::U16(681))));
+    assert_eq!(pixels.next(), Some((512, 512, RasterValue::U16(685))));
+    assert_eq!(pixels.next(), None);
+
+    let pixels = tiff
+        .pixels(510, 510, 4, 4)
+        .map(|(x, y, _v)| (x, y))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        pixels,
+        vec![
+            (510, 510),
+            (511, 510),
+            (510, 511),
+            (511, 511),
+            (512, 510),
+            (513, 510),
+            (512, 511),
+            (513, 511),
+            (510, 512),
+            (511, 512),
+            (510, 513),
+            (511, 513),
+            (512, 512),
+            (513, 512),
+            (512, 513),
+            (513, 513)
+        ]
+    );
+
+    // Test 0
+    let mut pixels = tiff.pixels(0, 0, 0, 0);
+    assert_eq!(pixels.next(), Some((0, 0, RasterValue::U16(636))));
+    assert_eq!(pixels.next(), None);
 }
