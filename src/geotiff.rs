@@ -81,6 +81,9 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
 
     pub fn read_pixel(&mut self, x: u32, y: u32) -> RasterValue {
         let image_dims = self.dimensions();
+        if x >= image_dims.0 || y >= image_dims.1 {
+            return RasterValue::NoData;
+        }
         let chunk_dims = self.decoder.chunk_dimensions();
         let image = TileAttributes::from_dims(image_dims, chunk_dims);
         let chunk_index = image.get_chunk_index(x, y);
@@ -164,6 +167,9 @@ impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
 
     fn next(&mut self) -> Option<(u32, u32, RasterValue)> {
         if self.chunk.is_err() {
+            if self.x >= self.dims.image_width as u32 || self.y >= self.dims.image_height as u32 {
+                return None;
+            }
             let chunk_index = self.dims.get_chunk_index(self.x, self.y);
             self.row = chunk_index / self.dims.tiles_across() as u32;
             self.col = chunk_index % self.dims.tiles_across() as u32;
@@ -298,6 +304,8 @@ impl TileAttributes {
     // }
     /// Return tile or stripe index of a pixel
     fn get_chunk_index(&self, x: u32, y: u32) -> u32 {
+        assert!(x < self.image_width as u32);
+        assert!(y < self.image_height as u32);
         let x_chunks = x as usize / self.tile_width;
         let y_chunks = y as usize / self.tile_length;
         let chunk_index = y_chunks * self.tiles_across() + x_chunks;
@@ -306,6 +314,8 @@ impl TileAttributes {
 
     /// Return offset of a pixel in tile or stripe
     fn get_chunk_offset(&self, x: u32, y: u32) -> usize {
+        assert!(x < self.image_width as u32);
+        assert!(y < self.image_height as u32);
         let x_offset = x as usize % self.tile_width;
         let y_offset = y as usize % self.tile_length;
         let offset = y_offset * self.tile_width + x_offset;
