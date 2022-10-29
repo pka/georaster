@@ -1,4 +1,4 @@
-all: N265E425.tif
+all: tiff/N265E425.tif
 
 # EU-DEM tile for testing
 
@@ -9,7 +9,7 @@ N265E425/N265E425.tif: N265E425.zip
 	unzip $<
 	touch $@
 
-N265E425.tif: N265E425/N265E425.tif
+tiff/N265E425.tif: N265E425/N265E425.tif
 	gdal_translate $< $@ -of COG -co COMPRESS=Deflate -ot UInt16
 	# gdalinfo N265E425.tif 
 	#
@@ -38,5 +38,8 @@ N265E425.tif: N265E425/N265E425.tif
 	#   NoData Value=0
 	#   Overviews: 2500x2500, 1250x1250, 625x625, 312x312
 
-N265E425.png: N265E425.tif
+N265E425.png: tiff/N265E425.tif
 	gdal_translate $< $@ -co ZLEVEL=1
+
+# tiff/pizol.tif: ../imagery/seen.tif
+# 	gdal_translate $< $@ -srcwin 0 0 200 200 -of COG -co COMPRESS=Deflate

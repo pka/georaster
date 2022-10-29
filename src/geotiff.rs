@@ -32,8 +32,8 @@ pub enum RasterValue {
 
 impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// Open GeoTIFF and read header information
-    pub fn open(src: R) -> std::io::Result<Self> {
-        let mut decoder = Decoder::new(src).expect("Cannot create decoder");
+    pub fn open(src: R) -> TiffResult<Self> {
+        let mut decoder = Decoder::new(src)?;
 
         // Read GeoTIFF tags
         let geo_keys = decoder.get_tag_u32_vec(Tag::GeoKeyDirectoryTag).ok();
