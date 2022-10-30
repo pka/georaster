@@ -1,6 +1,7 @@
 use georaster::geotiff::{GeoTiffReader, RasterValue};
 use std::fs::File;
 use std::io::BufReader;
+use tiff::tags::PhotometricInterpretation;
 
 #[test]
 fn single_band() {
@@ -8,7 +9,7 @@ fn single_band() {
         BufReader::new(File::open("data/tiff/f32nan_data.tif").expect("Cannot find test image!"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
 
-    assert_eq!(tiff.dimensions(), (128, 128));
+    assert_eq!(tiff.dimensions(), Some((128, 128)));
     assert_eq!(tiff.colortype(), Some(tiff::ColorType::Gray(32)));
     assert_eq!(tiff.origin(), Some([0.0, 0.0]));
     assert_eq!(tiff.pixel_size(), Some([1.0, 1.0]));
@@ -60,7 +61,7 @@ fn byte() {
         BufReader::new(File::open("data/tiff/byte.tif").expect("Cannot find test image!"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
 
-    assert_eq!(tiff.dimensions(), (20, 20));
+    assert_eq!(tiff.dimensions(), Some((20, 20)));
     assert_eq!(tiff.colortype(), Some(tiff::ColorType::Gray(8)));
     assert_eq!(tiff.origin(), Some([440720.0, 3751320.0]));
     assert_eq!(tiff.pixel_size(), Some([60.0, -60.0]));
@@ -76,7 +77,7 @@ fn float32() {
         BufReader::new(File::open("data/tiff/float32.tif").expect("Cannot find test image!"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
 
-    assert_eq!(tiff.dimensions(), (20, 20));
+    assert_eq!(tiff.dimensions(), Some((20, 20)));
     assert_eq!(tiff.colortype(), Some(tiff::ColorType::Gray(32)));
     assert_eq!(tiff.origin(), Some([440720.0, 3751320.0]));
     assert_eq!(tiff.pixel_size(), Some([60.0, -60.0]));
@@ -91,7 +92,7 @@ fn int16() {
         BufReader::new(File::open("data/tiff/int16.tif").expect("Cannot find test image!"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
 
-    assert_eq!(tiff.dimensions(), (20, 20));
+    assert_eq!(tiff.dimensions(), Some((20, 20)));
     assert_eq!(tiff.colortype(), Some(tiff::ColorType::Gray(16)));
     assert_eq!(tiff.origin(), Some([440720.0, 3751320.0]));
     assert_eq!(tiff.pixel_size(), Some([60.0, -60.0]));
@@ -107,7 +108,7 @@ fn int32() {
         BufReader::new(File::open("data/tiff/int32.tif").expect("Cannot find test image!"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
 
-    assert_eq!(tiff.dimensions(), (20, 20));
+    assert_eq!(tiff.dimensions(), Some((20, 20)));
     assert_eq!(tiff.colortype(), Some(tiff::ColorType::Gray(32)));
     assert_eq!(tiff.origin(), Some([440720.0, 3751320.0]));
     assert_eq!(tiff.pixel_size(), Some([60.0, -60.0]));
@@ -124,7 +125,7 @@ fn rgbsmall() {
     assert!(tiff.is_err()); // FormatError(InconsistentSizesEncountered)
                             // let mut tiff = tiff.expect("Cannot create decoder");
 
-    // assert_eq!(tiff.dimensions(), (50, 50));
+    // assert_eq!(tiff.dimensions(), Some((50, 50)));
     // assert_eq!(tiff.colortype(), Some(tiff::ColorType::RGB(8)));
     // assert_eq!(tiff.origin(), Some([-44.84032, -22.932584]));
     // assert_eq!(tiff.pixel_size(), Some([0.003432, -0.003432]));
@@ -149,7 +150,7 @@ fn small_world_pct() {
     );
     let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
 
-    assert_eq!(tiff.dimensions(), (400, 200));
+    assert_eq!(tiff.dimensions(), Some((400, 200)));
     assert_eq!(tiff.colortype(), None);
     assert_eq!(tiff.origin(), Some([-180.0, 90.0]));
     assert_eq!(tiff.pixel_size(), Some([0.9, -0.9]));
@@ -164,7 +165,7 @@ fn utm() {
         BufReader::new(File::open("data/tiff/utm.tif").expect("Cannot find test image!"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
 
-    assert_eq!(tiff.dimensions(), (512, 512));
+    assert_eq!(tiff.dimensions(), Some((512, 512)));
     assert_eq!(tiff.colortype(), Some(tiff::ColorType::Gray(8)));
     assert_eq!(tiff.origin(), Some([440720.0, 3751320.0]));
     assert_eq!(tiff.pixel_size(), Some([60.0, -60.0]));
@@ -179,7 +180,7 @@ fn rgb() {
         BufReader::new(File::open("data/tiff/sat.tif").expect("Cannot find test image!"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
 
-    assert_eq!(tiff.dimensions(), (200, 200));
+    assert_eq!(tiff.dimensions(), Some((200, 200)));
     assert_eq!(tiff.colortype(), Some(tiff::ColorType::RGB(8)));
     assert_eq!(tiff.origin(), Some([2747994.2968, 1205137.2435]));
     assert_eq!(
@@ -187,9 +188,13 @@ fn rgb() {
         Some([1.8898895579756552, -1.8898895306859578])
     );
     assert_eq!(tiff.geo_params, Some("CH1903+ / LV95|CH1903+|".to_string()));
+    assert_eq!(
+        tiff.photometric_interpretation,
+        Some(PhotometricInterpretation::RGB)
+    );
+    assert_eq!(tiff.chunk_dimensions(), (512, 512));
 
     // convert -quiet data/tiff/sat.tif[0] -crop 2x2+0+0 txt:
-    // # ImageMagick pixel enumeration: 2,2,255,srgb
     // 0,0: (59,65,27)  #3B411B  srgb(59,65,27)
     // 1,0: (63,69,31)  #3F451F  srgb(63,69,31)
     // 0,1: (53,64,22)  #354016  srgb(53,64,22)

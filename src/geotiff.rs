@@ -1,8 +1,8 @@
 //! GeoTIFF / COG file reader.
 
 use std::io::{Read, Seek};
-use tiff::decoder::{Decoder, DecodingResult};
-use tiff::tags::Tag;
+use tiff::decoder::{ifd, Decoder, DecodingResult};
+use tiff::tags::{PhotometricInterpretation, Tag};
 use tiff::{TiffError, TiffResult};
 
 /// GeoTIFF file reader
@@ -13,6 +13,7 @@ pub struct GeoTiffReader<R: Read + Seek> {
     pixel_scale: Option<Vec<f64>>,
     model_transformation: Option<Vec<f64>>,
     tie_points: Option<Vec<f64>>,
+    pub photometric_interpretation: Option<PhotometricInterpretation>,
 }
 
 #[derive(PartialEq, Debug)]
@@ -43,6 +44,11 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         let tie_points = decoder.get_tag_f64_vec(Tag::ModelTiepointTag).ok();
         // GeoDoubleParamsTag,
         // GdalNodata,
+        let photometric_interpretation = match decoder.get_tag(Tag::PhotometricInterpretation) {
+            Ok(ifd::Value::Short(v)) => PhotometricInterpretation::from_u16(v),
+            Ok(ifd::Value::Unsigned(v)) => PhotometricInterpretation::from_u16(v as u16),
+            _ => None,
+        };
 
         let reader = GeoTiffReader {
             decoder,
@@ -51,14 +57,20 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
             pixel_scale,
             model_transformation,
             tie_points,
+            photometric_interpretation,
         };
 
         Ok(reader)
     }
 
-    /// Image dimensions
-    pub fn dimensions(&mut self) -> (u32, u32) {
-        self.decoder.dimensions().unwrap()
+    /// Image dimensions.
+    pub fn dimensions(&mut self) -> Option<(u32, u32)> {
+        self.decoder.dimensions().ok()
+    }
+
+    /// Image dimensions or (0, 0) if undefined.
+    pub fn dimensions_or_zero(&mut self) -> (u32, u32) {
+        self.dimensions().unwrap_or((0, 0))
     }
 
     pub fn colortype(&mut self) -> Option<tiff::ColorType> {
@@ -79,8 +91,14 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         }
     }
 
+    /// Returns the default chunk size for the current image.
+    pub fn chunk_dimensions(&self) -> (u32, u32) {
+        self.decoder.chunk_dimensions()
+    }
+
+    /// Return raster value at offset x/y
     pub fn read_pixel(&mut self, x: u32, y: u32) -> RasterValue {
-        let image_dims = self.dimensions();
+        let image_dims = self.dimensions_or_zero();
         if x >= image_dims.0 || y >= image_dims.1 {
             return RasterValue::NoData;
         }
@@ -96,7 +114,7 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// The iterator yields the coordinates of each pixel
     /// along with their value
     pub fn pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Pixels<R> {
-        let image_dims = self.dimensions();
+        let image_dims = self.dimensions_or_zero();
         let chunk_dims = self.decoder.chunk_dimensions();
         let dims = TileAttributes::from_dims(image_dims, chunk_dims);
         Pixels {

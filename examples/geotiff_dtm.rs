@@ -95,7 +95,7 @@ fn main() {
     //     },
     // }
 
-    assert_eq!(tiff.dimensions(), (5000, 5000));
+    assert_eq!(tiff.dimensions(), Some((5000, 5000)));
     assert_eq!(tiff.colortype(), Some(tiff::ColorType::Gray(16)));
     assert_eq!(tiff.origin(), Some([4250000.0, 2700000.0]));
     assert_eq!(tiff.pixel_size(), Some([10.0, -10.0]));
