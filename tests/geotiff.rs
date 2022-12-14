@@ -121,17 +121,15 @@ fn int32() {
 fn rgbsmall() {
     let img_file =
         BufReader::new(File::open("data/tiff/rgbsmall.tif").expect("Cannot find test image!"));
-    let tiff = GeoTiffReader::open(img_file);
-    assert!(tiff.is_err()); // FormatError(InconsistentSizesEncountered)
-                            // let mut tiff = tiff.expect("Cannot create decoder");
+    let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
 
-    // assert_eq!(tiff.dimensions(), Some((50, 50)));
-    // assert_eq!(tiff.colortype(), Some(tiff::ColorType::RGB(8)));
-    // assert_eq!(tiff.origin(), Some([-44.84032, -22.932584]));
-    // assert_eq!(tiff.pixel_size(), Some([0.003432, -0.003432]));
-    // assert_eq!(tiff.geo_params, Some("WGS 84|".to_string()));
+    assert_eq!(tiff.dimensions(), Some((50, 50)));
+    assert_eq!(tiff.colortype(), Some(tiff::ColorType::RGB(8)));
+    assert_eq!(tiff.origin(), Some([-44.84032, -22.932584]));
+    assert_eq!(tiff.pixel_size(), Some([0.003432, -0.003432]));
+    assert_eq!(tiff.geo_params, Some("WGS 84|".to_string()));
 
-    // // onvert -quiet data/tiff/rgbsmall.tif[0] -crop 1x1+25+25 txt:
+    // convert -quiet data/tiff/rgbsmall.tif[0] -crop 1x1+25+25 txt:
     // assert_eq!(tiff.read_pixel(25, 25), RasterValue::U8(107));
 }
 
@@ -139,8 +137,13 @@ fn rgbsmall() {
 fn small_world() {
     let img_file =
         BufReader::new(File::open("data/tiff/small_world.tif").expect("Cannot find test image!"));
-    let tiff = GeoTiffReader::open(img_file);
-    assert!(tiff.is_err()); // FormatError(InconsistentSizesEncountered)
+    let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
+
+    assert_eq!(tiff.dimensions(), Some((400, 200)));
+    assert_eq!(tiff.colortype(), Some(tiff::ColorType::RGB(8)));
+    assert_eq!(tiff.origin(), Some([-180.0, 90.0]));
+    assert_eq!(tiff.pixel_size(), Some([0.9, -0.9]));
+    assert_eq!(tiff.geo_params, Some("WGS 84|".to_string()));
 }
 
 #[test]
@@ -204,4 +207,12 @@ fn rgb() {
     assert_eq!(tiff.read_pixel(2, 0), RasterValue::U8(27));
     assert_eq!(tiff.read_pixel(0, 1), RasterValue::U8(2)); // FIXME
     assert_eq!(tiff.read_pixel(1, 1), RasterValue::U8(14)); // FIXME
+}
+
+#[test]
+fn rgb_bands() {
+    let img_file =
+        BufReader::new(File::open("data/tiff/sat_multiband.tif").expect("Cannot find test image!"));
+    let tiff = GeoTiffReader::open(img_file);
+    assert!(tiff.is_err()); // FormatError(InconsistentSizesEncountered)
 }

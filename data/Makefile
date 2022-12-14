@@ -41,5 +41,8 @@ tiff/N265E425.tif: N265E425/N265E425.tif
 N265E425.png: tiff/N265E425.tif
 	gdal_translate $< $@ -co ZLEVEL=1
 
-# tiff/pizol.tif: ../imagery/seen.tif
+# tiff/sat.tif: ../imagery/seen.tif
 # 	gdal_translate $< $@ -srcwin 0 0 200 200 -of COG -co COMPRESS=Deflate
+
+tiff/sat_multiband.tif: tiff/sat.tif
+	gdal_translate $< $@ -co COMPRESS=Deflate -co INTERLEAVE=BAND -co TILED=YES
