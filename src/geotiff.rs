@@ -227,47 +227,18 @@ impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
 
 fn raster_value(chunk: &DecodingResult, offset: usize) -> RasterValue {
     match chunk {
-        DecodingResult::U8(chunk) => chunk
-            .get(offset)
-            .map(|v| RasterValue::U8(*v))
-            .unwrap_or(RasterValue::NoData),
-        DecodingResult::U16(chunk) => chunk
-            .get(offset)
-            .map(|v| RasterValue::U16(*v))
-            .unwrap_or(RasterValue::NoData),
-        DecodingResult::U32(chunk) => chunk
-            .get(offset)
-            .map(|v| RasterValue::U32(*v))
-            .unwrap_or(RasterValue::NoData),
-        DecodingResult::U64(chunk) => chunk
-            .get(offset)
-            .map(|v| RasterValue::U64(*v))
-            .unwrap_or(RasterValue::NoData),
-        DecodingResult::F32(chunk) => chunk
-            .get(offset)
-            .map(|v| RasterValue::F32(*v))
-            .unwrap_or(RasterValue::NoData),
-        DecodingResult::F64(chunk) => chunk
-            .get(offset)
-            .map(|v| RasterValue::F64(*v))
-            .unwrap_or(RasterValue::NoData),
-        DecodingResult::I8(chunk) => chunk
-            .get(offset)
-            .map(|v| RasterValue::I8(*v))
-            .unwrap_or(RasterValue::NoData),
-        DecodingResult::I16(chunk) => chunk
-            .get(offset)
-            .map(|v| RasterValue::I16(*v))
-            .unwrap_or(RasterValue::NoData),
-        DecodingResult::I32(chunk) => chunk
-            .get(offset)
-            .map(|v| RasterValue::I32(*v))
-            .unwrap_or(RasterValue::NoData),
-        DecodingResult::I64(chunk) => chunk
-            .get(offset)
-            .map(|v| RasterValue::I64(*v))
-            .unwrap_or(RasterValue::NoData),
+        DecodingResult::U8(chunk) => chunk.get(offset).map(|v| RasterValue::U8(*v)),
+        DecodingResult::U16(chunk) => chunk.get(offset).map(|v| RasterValue::U16(*v)),
+        DecodingResult::U32(chunk) => chunk.get(offset).map(|v| RasterValue::U32(*v)),
+        DecodingResult::U64(chunk) => chunk.get(offset).map(|v| RasterValue::U64(*v)),
+        DecodingResult::F32(chunk) => chunk.get(offset).map(|v| RasterValue::F32(*v)),
+        DecodingResult::F64(chunk) => chunk.get(offset).map(|v| RasterValue::F64(*v)),
+        DecodingResult::I8(chunk) => chunk.get(offset).map(|v| RasterValue::I8(*v)),
+        DecodingResult::I16(chunk) => chunk.get(offset).map(|v| RasterValue::I16(*v)),
+        DecodingResult::I32(chunk) => chunk.get(offset).map(|v| RasterValue::I32(*v)),
+        DecodingResult::I64(chunk) => chunk.get(offset).map(|v| RasterValue::I64(*v)),
     }
+    .unwrap_or(RasterValue::NoData)
 }
 
 // Tile calculation helper from image-tiff
