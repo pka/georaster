@@ -36,18 +36,16 @@ fn single_band() {
     // 1,0: gray(1.28939%)
     // 0,1: gray(30.4997%)
     // 1,1: gray(69.7505%)
-    let mut pixels = tiff.pixels(102, 15, 2, 2);
+    let pixels: Vec<_> = tiff.pixels(102, 15, 2, 2).collect();
     assert_eq!(
-        pixels.next(),
-        Some((102, 15, RasterValue::F32(0.023571081)))
+        pixels,
+        vec![
+            (102, 15, RasterValue::F32(0.023571081)),
+            (103, 15, RasterValue::F32(0.012901229)),
+            (102, 16, RasterValue::F32(0.305)),
+            (103, 16, RasterValue::F32(0.6975))
+        ]
     );
-    assert_eq!(
-        pixels.next(),
-        Some((103, 15, RasterValue::F32(0.012901229)))
-    );
-    assert_eq!(pixels.next(), Some((102, 16, RasterValue::F32(0.305))));
-    assert_eq!(pixels.next(), Some((103, 16, RasterValue::F32(0.6975))));
-    assert_eq!(pixels.next(), None);
 
     // Test 0
     let mut pixels = tiff.pixels(0, 0, 0, 0);
@@ -202,11 +200,36 @@ fn rgb() {
     // 1,0: (63,69,31)  #3F451F  srgb(63,69,31)
     // 0,1: (53,64,22)  #354016  srgb(53,64,22)
     // 1,1: (59,70,30)  #3B461E  srgb(59,70,30)
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::U8(59));
-    assert_eq!(tiff.read_pixel(1, 0), RasterValue::U8(65));
-    assert_eq!(tiff.read_pixel(2, 0), RasterValue::U8(27));
-    assert_eq!(tiff.read_pixel(0, 1), RasterValue::U8(2)); // FIXME
-    assert_eq!(tiff.read_pixel(1, 1), RasterValue::U8(14)); // FIXME
+    assert_eq!(tiff.read_pixel(0, 0), RasterValue::Rgb8(59, 65, 27));
+    assert_eq!(tiff.read_pixel(1, 0), RasterValue::Rgb8(63, 69, 31));
+    assert_eq!(tiff.read_pixel(0, 1), RasterValue::Rgb8(53, 64, 22));
+    assert_eq!(tiff.read_pixel(1, 1), RasterValue::Rgb8(59, 70, 30));
+
+    let pixels: Vec<_> = tiff.pixels(0, 0, 2, 2).map(|(_x, _y, px)| px).collect();
+    assert_eq!(
+        pixels,
+        vec!(
+            RasterValue::Rgb8(59, 65, 27),
+            RasterValue::Rgb8(63, 69, 31),
+            RasterValue::Rgb8(53, 64, 22),
+            RasterValue::Rgb8(59, 70, 30)
+        )
+    );
+    // convert -quiet data/tiff/sat.tif[0] -crop 2x2+198+198 txt:
+    // 0,0: (27,21,7)   #1B1507  srgb(27,21,7)
+    // 1,0: (13,8,0)    #0D0800  srgb(13,8,0)
+    // 0,1: (21,12,7)   #150C07  srgb(21,12,7)
+    // 1,1: (25,15,13)  #190F0D  srgb(25,15,13)
+    let pixels: Vec<_> = tiff.pixels(198, 198, 2, 2).map(|(_x, _y, px)| px).collect();
+    assert_eq!(
+        pixels,
+        vec!(
+            RasterValue::Rgb8(27, 21, 7),
+            RasterValue::Rgb8(13, 8, 0),
+            RasterValue::Rgb8(21, 12, 7),
+            RasterValue::Rgb8(25, 15, 13)
+        )
+    );
 }
 
 #[test]

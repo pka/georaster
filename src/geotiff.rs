@@ -17,6 +17,7 @@ pub struct GeoTiffReader<R: Read + Seek> {
 }
 
 #[derive(PartialEq, Debug)]
+#[non_exhaustive]
 pub enum RasterValue {
     NoData,
     U8(u8),
@@ -29,6 +30,8 @@ pub enum RasterValue {
     I16(i16),
     I32(i32),
     I64(i64),
+    Rgb8(u8, u8, u8),
+    Rgb16(u16, u16, u16),
 }
 
 impl<R: Read + Seek + Send> GeoTiffReader<R> {
@@ -96,6 +99,16 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         self.decoder.chunk_dimensions()
     }
 
+    /// Samples per pixel
+    fn spp(&mut self) -> usize {
+        match self.decoder.colortype() {
+            Ok(tiff::ColorType::Gray(_)) => 1,
+            Ok(tiff::ColorType::RGB(_)) => 3,
+            Ok(tiff::ColorType::RGBA(_)) => 4,
+            _ => 1, // unsupported
+        }
+    }
+
     /// Return raster value at offset x/y
     pub fn read_pixel(&mut self, x: u32, y: u32) -> RasterValue {
         let image_dims = self.dimensions_or_zero();
@@ -105,9 +118,10 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         let chunk_dims = self.decoder.chunk_dimensions();
         let image = TileAttributes::from_dims(image_dims, chunk_dims);
         let chunk_index = image.get_chunk_index(x, y);
-        let offset = image.get_chunk_offset(x, y);
+        let spp = self.spp();
+        let offset = image.get_chunk_offset(x, y, spp);
         let chunk = self.decoder.read_chunk(chunk_index).unwrap();
-        raster_value(&chunk, offset)
+        raster_value(&chunk, offset, spp)
     }
 
     /// Returns an Iterator over the pixels of an image part.
@@ -117,6 +131,7 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         let image_dims = self.dimensions_or_zero();
         let chunk_dims = self.decoder.chunk_dimensions();
         let dims = TileAttributes::from_dims(image_dims, chunk_dims);
+        let spp = self.spp();
         Pixels {
             decoder: &mut self.decoder,
             chunk: Err(TiffError::LimitsExceeded),
@@ -126,6 +141,7 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
             col: 0,
             row: 0,
             dims,
+            spp,
             min_x: x,
             min_y: y,
             max_x: x + width,
@@ -174,6 +190,8 @@ pub struct Pixels<'a, R: Read + Seek> {
     col: u32,
     row: u32,
     dims: TileAttributes,
+    // Samples per pixel (Gray=1, RGB (single band) = 3, etc.)
+    spp: usize,
     min_x: u32,
     min_y: u32,
     max_x: u32,
@@ -192,16 +210,16 @@ impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
             self.row = chunk_index / self.dims.tiles_across() as u32;
             self.col = chunk_index % self.dims.tiles_across() as u32;
             self.chunk = self.decoder.read_chunk(chunk_index);
-            self.offset = self.dims.get_chunk_offset(self.x, self.y);
+            self.offset = self.dims.get_chunk_offset(self.x, self.y, self.spp);
         } else {
             let (w, h) = (self.dims.tile_width as u32, self.dims.tile_length as u32);
             if self.x % w < w - 1 && self.x + 1 < self.max_x {
                 self.x += 1;
-                self.offset += 1;
+                self.offset += self.spp;
             } else if self.y % h + 1 < h && self.y + 1 < self.max_y {
                 self.y += 1;
                 self.x = (self.col * w).max(self.min_x);
-                self.offset = self.dims.get_chunk_offset(self.x, self.y);
+                self.offset = self.dims.get_chunk_offset(self.x, self.y, self.spp);
             } else {
                 // next chunk
                 if self.x + 1 < self.max_x {
@@ -217,17 +235,30 @@ impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
                 self.row = chunk_index / self.dims.tiles_across() as u32;
                 self.col = chunk_index % self.dims.tiles_across() as u32;
                 self.chunk = self.decoder.read_chunk(chunk_index);
-                self.offset = self.dims.get_chunk_offset(self.x, self.y);
+                self.offset = self.dims.get_chunk_offset(self.x, self.y, self.spp);
             }
         }
-        let val = raster_value(self.chunk.as_ref().unwrap(), self.offset);
+        let val = raster_value(self.chunk.as_ref().unwrap(), self.offset, self.spp);
         Some((self.x, self.y, val))
     }
 }
 
-fn raster_value(chunk: &DecodingResult, offset: usize) -> RasterValue {
+fn raster_value(chunk: &DecodingResult, offset: usize, spp: usize) -> RasterValue {
     match chunk {
-        DecodingResult::U8(chunk) => chunk.get(offset).map(|v| RasterValue::U8(*v)),
+        DecodingResult::U8(chunk) => match spp {
+            3 => {
+                if let (Some(r), Some(g), Some(b)) = (
+                    chunk.get(offset),
+                    chunk.get(offset + 1),
+                    chunk.get(offset + 2),
+                ) {
+                    Some(RasterValue::Rgb8(*r, *g, *b))
+                } else {
+                    None
+                }
+            }
+            _ => chunk.get(offset).map(|v| RasterValue::U8(*v)),
+        },
         DecodingResult::U16(chunk) => chunk.get(offset).map(|v| RasterValue::U16(*v)),
         DecodingResult::U32(chunk) => chunk.get(offset).map(|v| RasterValue::U32(*v)),
         DecodingResult::U64(chunk) => chunk.get(offset).map(|v| RasterValue::U64(*v)),
@@ -302,12 +333,14 @@ impl TileAttributes {
     }
 
     /// Return offset of a pixel in tile or stripe
-    fn get_chunk_offset(&self, x: u32, y: u32) -> usize {
+    fn get_chunk_offset(&self, x: u32, y: u32, spp: usize) -> usize {
         assert!(x < self.image_width as u32);
         assert!(y < self.image_height as u32);
-        let x_offset = x as usize % self.tile_width;
-        let y_offset = y as usize % self.tile_length;
-        let offset = y_offset * self.tile_width + x_offset;
-        offset
+        let w = self.tile_width.min(self.image_width);
+        let h = self.tile_length.min(self.image_height);
+        let x_offset = x as usize % w;
+        let y_offset = y as usize % h;
+        let offset = y_offset * w + x_offset;
+        offset * spp
     }
 }
