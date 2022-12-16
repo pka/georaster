@@ -1,5 +1,6 @@
 //! GeoTIFF / COG file reader.
 
+use std::fmt;
 use std::io::{Read, Seek};
 use tiff::decoder::{ifd, Decoder, DecodingResult};
 use tiff::tags::{PhotometricInterpretation, Tag};
@@ -34,6 +35,28 @@ pub enum RasterValue {
     Rgba8(u8, u8, u8, u8),
     Rgb16(u16, u16, u16),
     Rgba16(u16, u16, u16, u16),
+}
+
+impl fmt::Display for RasterValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RasterValue::U8(v) => write!(f, "{v}"),
+            RasterValue::U16(v) => write!(f, "{v}"),
+            RasterValue::U32(v) => write!(f, "{v}"),
+            RasterValue::U64(v) => write!(f, "{v}"),
+            RasterValue::F32(v) => write!(f, "{v}"),
+            RasterValue::F64(v) => write!(f, "{v}"),
+            RasterValue::I8(v) => write!(f, "{v}"),
+            RasterValue::I16(v) => write!(f, "{v}"),
+            RasterValue::I32(v) => write!(f, "{v}"),
+            RasterValue::I64(v) => write!(f, "{v}"),
+            RasterValue::Rgb8(r, g, b) => write!(f, "({r},{g},{b})"),
+            RasterValue::Rgb16(r, g, b) => write!(f, "({r},{g},{b})"),
+            RasterValue::Rgba8(r, g, b, a) => write!(f, "({r},{g},{b},{a})"),
+            RasterValue::Rgba16(r, g, b, a) => write!(f, "({r},{g},{b},{a})"),
+            _ => write!(f, "<NoData>"),
+        }
+    }
 }
 
 impl<R: Read + Seek + Send> GeoTiffReader<R> {

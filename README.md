@@ -6,6 +6,16 @@ Rust library for accessing geospatial raster images.
 
 ## Usage examples
 
+Read pixel value from GeoTIFF:
+```rust
+let img_file = BufReader::new(File::open("N265E425.tif").unwrap());
+let mut tiff = GeoTiffReader::open(img_file).unwrap();
+match tiff.read_pixel(x, y) {
+    RasterValue::U16(v) => println!("Height: {v}"),
+    _ => println!("Unexpected pixel type"),
+};
+```
+
 Extract part of GeoTIFF into a PNG:
 ```rust
 let img_file = BufReader::new(File::open("N265E425.tif").unwrap());
@@ -30,5 +40,7 @@ make
 ```
 
 ```
+cargo run --example pixel data/tiff/N265E425.tif 2550 3050
+
 cargo run --example crop data/tiff/N265E425.tif 100x100+2500+3000 dtm.png
 ```
