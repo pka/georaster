@@ -206,17 +206,15 @@ impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
             if self.x >= self.dims.image_width as u32 || self.y >= self.dims.image_height as u32 {
                 return None;
             }
-            let chunk_index = self.dims.get_chunk_index(self.x, self.y);
-            self.row = chunk_index / self.dims.tiles_across() as u32;
-            self.col = chunk_index % self.dims.tiles_across() as u32;
-            self.chunk = self.decoder.read_chunk(chunk_index);
-            self.offset = self.dims.get_chunk_offset(self.x, self.y, self.spp);
+            self.read_chunk();
         } else {
+            // Iterate within chunks (tiles/stripes) from left to right, top to bottom
             let (w, h) = (self.dims.tile_width as u32, self.dims.tile_length as u32);
             if self.x % w < w - 1 && self.x + 1 < self.max_x {
                 self.x += 1;
                 self.offset += self.spp;
             } else if self.y % h + 1 < h && self.y + 1 < self.max_y {
+                // next row in chunk
                 self.y += 1;
                 self.x = (self.col * w).max(self.min_x);
                 self.offset = self.dims.get_chunk_offset(self.x, self.y, self.spp);
@@ -231,15 +229,21 @@ impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
                 } else {
                     return None;
                 }
-                let chunk_index = self.dims.get_chunk_index(self.x, self.y);
-                self.row = chunk_index / self.dims.tiles_across() as u32;
-                self.col = chunk_index % self.dims.tiles_across() as u32;
-                self.chunk = self.decoder.read_chunk(chunk_index);
-                self.offset = self.dims.get_chunk_offset(self.x, self.y, self.spp);
+                self.read_chunk();
             }
         }
         let val = raster_value(self.chunk.as_ref().unwrap(), self.offset, self.spp);
         Some((self.x, self.y, val))
+    }
+}
+
+impl<'a, R: Read + Seek> Pixels<'a, R> {
+    fn read_chunk(&mut self) {
+        let chunk_index = self.dims.get_chunk_index(self.x, self.y);
+        self.row = chunk_index / self.dims.tiles_across() as u32;
+        self.col = chunk_index % self.dims.tiles_across() as u32;
+        self.chunk = self.decoder.read_chunk(chunk_index);
+        self.offset = self.dims.get_chunk_offset(self.x, self.y, self.spp);
     }
 }
 
