@@ -360,34 +360,33 @@ impl TileAttributes {
     pub fn tiles_across(&self) -> usize {
         (self.image_width + self.tile_width - 1) / self.tile_width
     }
-    // pub fn tiles_down(&self) -> usize {
-    //     (self.image_height + self.tile_length - 1) / self.tile_length
-    // }
-    // fn padding_right(&self) -> usize {
-    //     self.tile_width - self.image_width % self.tile_width
-    // }
-    // fn padding_down(&self) -> usize {
-    //     self.tile_length - self.image_height % self.tile_length
-    // }
+    pub fn tiles_down(&self) -> usize {
+        (self.image_height + self.tile_length - 1) / self.tile_length
+    }
+    fn padding_right(&self) -> usize {
+        (self.tile_width - self.image_width % self.tile_width) % self.tile_width
+    }
+    fn padding_down(&self) -> usize {
+        (self.tile_length - self.image_height % self.tile_length) % self.tile_length
+    }
+    pub fn get_padding(&self, tile: usize) -> (usize, usize) {
+        let row = tile / self.tiles_across();
+        let column = tile % self.tiles_across();
 
-    // pub fn get_padding(&self, tile: usize) -> (usize, usize) {
-    //     let row = tile / self.tiles_across();
-    //     let column = tile % self.tiles_across();
+        let padding_right = if column == self.tiles_across() - 1 {
+            self.padding_right()
+        } else {
+            0
+        };
 
-    //     let padding_right = if column == self.tiles_across() - 1 {
-    //         self.padding_right()
-    //     } else {
-    //         0
-    //     };
+        let padding_down = if row == self.tiles_down() - 1 {
+            self.padding_down()
+        } else {
+            0
+        };
 
-    //     let padding_down = if row == self.tiles_down() - 1 {
-    //         self.padding_down()
-    //     } else {
-    //         0
-    //     };
-
-    //     (padding_right, padding_down)
-    // }
+        (padding_right, padding_down)
+    }
     /// Return tile or stripe index of a pixel
     fn get_chunk_index(&self, x: u32, y: u32) -> u32 {
         assert!(x < self.image_width as u32);
@@ -400,10 +399,10 @@ impl TileAttributes {
 
     /// Return offset of a pixel in tile or stripe
     fn get_chunk_offset(&self, x: u32, y: u32, spp: usize) -> usize {
-        assert!(x < self.image_width as u32);
-        assert!(y < self.image_height as u32);
-        let w = self.tile_width.min(self.image_width);
-        let h = self.tile_length.min(self.image_height);
+        let tile = self.get_chunk_index(x, y);
+        let (padding_right, padding_down) = self.get_padding(tile as usize);
+        let w = self.tile_width - padding_right;
+        let h = self.tile_length - padding_down;
         let x_offset = x as usize % w;
         let y_offset = y as usize % h;
         let offset = y_offset * w + x_offset;
