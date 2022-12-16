@@ -31,7 +31,9 @@ pub enum RasterValue {
     I32(i32),
     I64(i64),
     Rgb8(u8, u8, u8),
+    Rgba8(u8, u8, u8, u8),
     Rgb16(u16, u16, u16),
+    Rgba16(u16, u16, u16, u16),
 }
 
 impl<R: Read + Seek + Send> GeoTiffReader<R> {
@@ -261,9 +263,46 @@ fn raster_value(chunk: &DecodingResult, offset: usize, spp: usize) -> RasterValu
                     None
                 }
             }
+            4 => {
+                if let (Some(r), Some(g), Some(b), Some(a)) = (
+                    chunk.get(offset),
+                    chunk.get(offset + 1),
+                    chunk.get(offset + 2),
+                    chunk.get(offset + 3),
+                ) {
+                    Some(RasterValue::Rgba8(*r, *g, *b, *a))
+                } else {
+                    None
+                }
+            }
             _ => chunk.get(offset).map(|v| RasterValue::U8(*v)),
         },
-        DecodingResult::U16(chunk) => chunk.get(offset).map(|v| RasterValue::U16(*v)),
+        DecodingResult::U16(chunk) => match spp {
+            3 => {
+                if let (Some(r), Some(g), Some(b)) = (
+                    chunk.get(offset),
+                    chunk.get(offset + 1),
+                    chunk.get(offset + 2),
+                ) {
+                    Some(RasterValue::Rgb16(*r, *g, *b))
+                } else {
+                    None
+                }
+            }
+            4 => {
+                if let (Some(r), Some(g), Some(b), Some(a)) = (
+                    chunk.get(offset),
+                    chunk.get(offset + 1),
+                    chunk.get(offset + 2),
+                    chunk.get(offset + 3),
+                ) {
+                    Some(RasterValue::Rgba16(*r, *g, *b, *a))
+                } else {
+                    None
+                }
+            }
+            _ => chunk.get(offset).map(|v| RasterValue::U16(*v)),
+        },
         DecodingResult::U32(chunk) => chunk.get(offset).map(|v| RasterValue::U32(*v)),
         DecodingResult::U64(chunk) => chunk.get(offset).map(|v| RasterValue::U64(*v)),
         DecodingResult::F32(chunk) => chunk.get(offset).map(|v| RasterValue::F32(*v)),
