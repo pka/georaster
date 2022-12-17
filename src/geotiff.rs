@@ -97,7 +97,7 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     }
 
     /// Image dimensions or (0, 0) if undefined.
-    pub fn dimensions_or_zero(&mut self) -> (u32, u32) {
+    fn dimensions_or_zero(&mut self) -> (u32, u32) {
         self.dimensions().unwrap_or((0, 0))
     }
 
@@ -174,6 +174,7 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         }
     }
 
+    // COG experiments
     pub fn read_cog(&mut self) {
         // Good format description:
         // https://medium.com/planet-stories/reading-a-single-tiff-pixel-without-any-tiff-tools-fcbd43d8bd24
@@ -194,7 +195,9 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         }
     }
 
-    pub fn read_overviews(&mut self) {
+    // OVerview experiments
+    #[allow(dead_code)]
+    fn read_overviews(&mut self) {
         while self.decoder.more_images() {
             self.decoder.next_image().unwrap();
             dbg!(self.decoder.dimensions().unwrap());

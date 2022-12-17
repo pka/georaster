@@ -15,8 +15,8 @@ fn main() {
         .map(|s| u32::from_str(&s).expect("Invalid number"))
         .expect("Y required");
 
-    let img_file = BufReader::new(File::open(src_fn).expect("Cannot open input file"));
-    let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
+    let img_file = BufReader::new(File::open(src_fn).expect("Open input file"));
+    let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
     let pixel = tiff.read_pixel(x, y);
     println!("{pixel}");
 }

@@ -20,8 +20,8 @@ fn main() {
     let x0 = *parts.get(2).unwrap_or(&0);
     let y0 = *parts.get(3).unwrap_or(&0);
 
-    let img_file = BufReader::new(File::open(src_fn).expect("Cannot open input file"));
-    let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
+    let img_file = BufReader::new(File::open(src_fn).expect("Open input file"));
+    let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
     let mut img = ImageBuffer::new(w, h);
     for (x, y, pixel) in tiff.pixels(x0, y0, w, h) {
         if let RasterValue::U16(v) = pixel {
