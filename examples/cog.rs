@@ -5,10 +5,11 @@ use std::io::BufReader;
 fn main() {
     // https://gdal.org/drivers/raster/cog.html
     let img_file =
-        BufReader::new(File::open("data/tiff/sat.tif").expect("Cannot find test image!"));
+        BufReader::new(File::open("data/tiff/N265E425.tif").expect("Cannot find test image!"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Cannot create decoder");
 
-    assert_eq!(tiff.colortype(), Some(tiff::ColorType::RGB(8)));
-
+    for (idx, img) in tiff.images().iter().enumerate() {
+        println!("Image #{idx}: {img:?}");
+    }
     tiff.read_cog();
 }

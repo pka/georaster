@@ -9,11 +9,20 @@ use tiff::{TiffError, TiffResult};
 /// GeoTIFF file reader
 pub struct GeoTiffReader<R: Read + Seek> {
     decoder: Decoder<R>,
+    images: Vec<ImageInfo>,
     pub geo_keys: Option<Vec<u32>>,
     pub geo_params: Option<String>,
     pixel_scale: Option<Vec<f64>>,
     model_transformation: Option<Vec<f64>>,
     tie_points: Option<Vec<f64>>,
+}
+
+/// Image information from TIFF IFD
+#[derive(Debug)]
+pub struct ImageInfo {
+    /// Image dimensions.
+    pub dimensions: Option<(u32, u32)>,
+    pub colortype: Option<tiff::ColorType>,
     pub photometric_interpretation: Option<PhotometricInterpretation>,
 }
 
@@ -72,37 +81,39 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         let tie_points = decoder.get_tag_f64_vec(Tag::ModelTiepointTag).ok();
         // GeoDoubleParamsTag,
         // GdalNodata,
-        let photometric_interpretation = match decoder.get_tag(Tag::PhotometricInterpretation) {
-            Ok(ifd::Value::Short(v)) => PhotometricInterpretation::from_u16(v),
-            Ok(ifd::Value::Unsigned(v)) => PhotometricInterpretation::from_u16(v as u16),
-            _ => None,
-        };
+
+        // Read all IFDs
+        let mut images = Vec::new();
+        loop {
+            images.push(ImageInfo::decode(&mut decoder));
+            if decoder.more_images() {
+                decoder.next_image().expect("Read image info")
+            } else {
+                break;
+            }
+        }
 
         let reader = GeoTiffReader {
             decoder,
+            images,
             geo_keys,
             geo_params,
             pixel_scale,
             model_transformation,
             tie_points,
-            photometric_interpretation,
         };
 
         Ok(reader)
     }
 
-    /// Image dimensions.
-    pub fn dimensions(&mut self) -> Option<(u32, u32)> {
-        self.decoder.dimensions().ok()
+    /// Infos about images
+    pub fn images(&self) -> &Vec<ImageInfo> {
+        &self.images
     }
 
-    /// Image dimensions or (0, 0) if undefined.
-    fn dimensions_or_zero(&mut self) -> (u32, u32) {
-        self.dimensions().unwrap_or((0, 0))
-    }
-
-    pub fn colortype(&mut self) -> Option<tiff::ColorType> {
-        self.decoder.colortype().ok()
+    /// Load image info into reader
+    pub fn seek_to_image(&mut self, index: usize) -> TiffResult<()> {
+        self.decoder.seek_to_image(index)
     }
 
     pub fn origin(&self) -> Option<[f64; 2]> {
@@ -119,8 +130,13 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         }
     }
 
+    /// Image dimensions or (0, 0) if undefined.
+    fn dimensions_or_zero(&mut self) -> (u32, u32) {
+        self.decoder.dimensions().unwrap_or((0, 0))
+    }
+
     /// Returns the default chunk size for the current image.
-    pub fn chunk_dimensions(&self) -> (u32, u32) {
+    fn chunk_dimensions(&self) -> (u32, u32) {
         self.decoder.chunk_dimensions()
     }
 
@@ -140,7 +156,7 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         if x >= image_dims.0 || y >= image_dims.1 {
             return RasterValue::NoData;
         }
-        let chunk_dims = self.decoder.chunk_dimensions();
+        let chunk_dims = self.chunk_dimensions();
         let image = TileAttributes::from_dims(image_dims, chunk_dims);
         let chunk_index = image.get_chunk_index(x, y);
         let spp = self.spp();
@@ -187,23 +203,30 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
             // tiles in row major order
             dbg!(self.decoder.chunk_data_dimensions(tile));
             match self.decoder.read_chunk(tile).unwrap() {
-                DecodingResult::U8(res) => {
+                DecodingResult::U16(res) => {
                     let _sum: u64 = res.into_iter().map(<u64>::from).sum();
                 }
                 _ => panic!("Wrong bit depth"),
             }
         }
     }
+}
 
-    // OVerview experiments
-    #[allow(dead_code)]
-    fn read_overviews(&mut self) {
-        while self.decoder.more_images() {
-            self.decoder.next_image().unwrap();
-            dbg!(self.decoder.dimensions().unwrap());
-            if let Ok(subfile_type) = self.decoder.get_tag_u64(Tag::NewSubfileType) {
-                dbg!(subfile_type);
-            }
+impl ImageInfo {
+    pub fn decode<R: Read + Seek + Send>(decoder: &mut Decoder<R>) -> Self {
+        let dimensions = decoder.dimensions().ok();
+        let colortype = decoder.colortype().ok();
+        let photometric_interpretation = match decoder.get_tag(Tag::PhotometricInterpretation) {
+            Ok(ifd::Value::Short(v)) => PhotometricInterpretation::from_u16(v),
+            Ok(ifd::Value::Unsigned(v)) => PhotometricInterpretation::from_u16(v as u16),
+            _ => None,
+        };
+        let _subfile_type = decoder.get_tag_u64(Tag::NewSubfileType);
+
+        ImageInfo {
+            dimensions,
+            colortype,
+            photometric_interpretation,
         }
     }
 }

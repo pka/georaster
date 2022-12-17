@@ -95,8 +95,9 @@ fn main() {
     //     },
     // }
 
-    assert_eq!(tiff.dimensions(), Some((5000, 5000)));
-    assert_eq!(tiff.colortype(), Some(tiff::ColorType::Gray(16)));
+    let img = tiff.images().get(0).expect("Image info");
+    assert_eq!(img.dimensions, Some((5000, 5000)));
+    assert_eq!(img.colortype, Some(tiff::ColorType::Gray(16)));
     assert_eq!(tiff.origin(), Some([4250000.0, 2700000.0]));
     assert_eq!(tiff.pixel_size(), Some([10.0, -10.0]));
     assert_eq!(
@@ -104,6 +105,7 @@ fn main() {
         Some("ETRS89_ETRS_LAEA|ETRS89|".to_string())
     );
 
+    tiff.seek_to_image(0).unwrap();
     assert_eq!(tiff.read_pixel(0, 0), RasterValue::U16(636));
 
     let max_height = tiff
