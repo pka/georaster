@@ -40,7 +40,11 @@ make
 ```
 
 ```
+cargo run --example info data/tiff/N265E425.tif
+
 cargo run --example pixel data/tiff/N265E425.tif 2550 3050
 
 cargo run --example crop data/tiff/N265E425.tif 100x100+2500+3000 dtm.png
+
+cargo run --example img2ascii data/tiff/sat.tif
 ```

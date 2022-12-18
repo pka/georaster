@@ -190,26 +190,22 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         }
     }
 
-    // COG experiments
-    pub fn read_cog(&mut self) {
-        // Good format description:
-        // https://medium.com/planet-stories/reading-a-single-tiff-pixel-without-any-tiff-tools-fcbd43d8bd24
+    // fn read_image(&mut self) {
+    //     let tiles = self.decoder.tile_count().unwrap();
+    //     dbg!(tiles);
+    //     dbg!(self.decoder.chunk_dimensions());
 
-        let tiles = self.decoder.tile_count().unwrap();
-        dbg!(tiles);
-        dbg!(self.decoder.chunk_dimensions());
-
-        for tile in 0..tiles {
-            // tiles in row major order
-            dbg!(self.decoder.chunk_data_dimensions(tile));
-            match self.decoder.read_chunk(tile).unwrap() {
-                DecodingResult::U16(res) => {
-                    let _sum: u64 = res.into_iter().map(<u64>::from).sum();
-                }
-                _ => panic!("Wrong bit depth"),
-            }
-        }
-    }
+    //     for tile in 0..tiles {
+    //         // tiles in row major order
+    //         dbg!(self.decoder.chunk_data_dimensions(tile));
+    //         match self.decoder.read_chunk(tile).unwrap() {
+    //             DecodingResult::U16(res) => {
+    //                 let _sum: u64 = res.into_iter().map(<u64>::from).sum();
+    //             }
+    //             _ => panic!("Wrong bit depth"),
+    //         }
+    //     }
+    // }
 }
 
 impl ImageInfo {
