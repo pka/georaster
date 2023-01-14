@@ -12,9 +12,13 @@ fn main() {
     println!("Pixel size: {:?}", tiff.pixel_size());
     println!("SRS: {:?}", tiff.geo_params);
     for (idx, img) in tiff.images().iter().enumerate() {
+        println!("Image #{idx}:");
+        println!("  Dimensions: {:?}", img.dimensions);
+        println!("  Color: {:?}", img.colortype);
         println!(
-            "Image #{idx} dimensions: {:?} - color type: {:?}",
-            img.dimensions, img.colortype
+            "  Photometric interpretation: {:?}",
+            img.photometric_interpretation
         );
+        println!("  Planar config: {:?}", img.planar_config);
     }
 }

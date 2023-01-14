@@ -1,15 +1,22 @@
 //! GeoTIFF / COG file reader.
+// TIFF File Format: https://www.fileformat.info/format/tiff/egff.htm
+// GeoTIFF standard: http://docs.opengeospatial.org/is/19-008r4/19-008r4.html
+// GDAL TIFF driver: https://gdal.org/drivers/raster/gtiff.html
+// GDAL COG driver: https://gdal.org/drivers/raster/cog.html
 
 use std::fmt;
 use std::io::{Read, Seek};
 use tiff::decoder::{ifd, Decoder, DecodingResult};
-use tiff::tags::{PhotometricInterpretation, Tag};
+use tiff::tags::{PhotometricInterpretation, PlanarConfiguration, Tag};
 use tiff::{TiffError, TiffResult};
 
 /// GeoTIFF file reader
 pub struct GeoTiffReader<R: Read + Seek> {
     decoder: Decoder<R>,
+    band_idx: u8,
     images: Vec<ImageInfo>,
+    /// Current image in Decoder
+    cur_image_idx: usize,
     pub geo_keys: Option<Vec<u32>>,
     pub geo_params: Option<String>,
     pixel_scale: Option<Vec<f64>>,
@@ -23,7 +30,11 @@ pub struct ImageInfo {
     /// Image dimensions.
     pub dimensions: Option<(u32, u32)>,
     pub colortype: Option<tiff::ColorType>,
+    // https://awaresystems.be/imaging/tiff/tifftags/photometricinterpretation.html
     pub photometric_interpretation: Option<PhotometricInterpretation>,
+    // https://awaresystems.be/imaging/tiff/tifftags/planarconfiguration.html
+    pub planar_config: Option<PlanarConfiguration>,
+    pub samples: u8,
 }
 
 #[derive(PartialEq, Debug)]
@@ -79,8 +90,8 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         let pixel_scale = decoder.get_tag_f64_vec(Tag::ModelPixelScaleTag).ok();
         let model_transformation = decoder.get_tag_f64_vec(Tag::ModelTransformationTag).ok();
         let tie_points = decoder.get_tag_f64_vec(Tag::ModelTiepointTag).ok();
-        // GeoDoubleParamsTag,
-        // GdalNodata,
+        let _geo_double_params = decoder.get_tag_f64_vec(Tag::GeoDoubleParamsTag).ok();
+        let _nodata = decoder.get_tag_ascii_string(Tag::GdalNodata).ok();
 
         // Read all IFDs
         let mut images = Vec::new();
@@ -92,10 +103,13 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
                 break;
             }
         }
+        let cur_image_idx = images.len() - 1;
 
         let reader = GeoTiffReader {
             decoder,
+            band_idx: 0,
             images,
+            cur_image_idx,
             geo_keys,
             geo_params,
             pixel_scale,
@@ -106,14 +120,21 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         Ok(reader)
     }
 
-    /// Infos about images
+    /// Infos about images.
     pub fn images(&self) -> &Vec<ImageInfo> {
         &self.images
     }
 
+    /// info for current image.
+    pub fn image_info(&self) -> &ImageInfo {
+        &self.images[self.cur_image_idx]
+    }
+
     /// Load image info into reader
     pub fn seek_to_image(&mut self, index: usize) -> TiffResult<()> {
-        self.decoder.seek_to_image(index)
+        self.decoder.seek_to_image(index)?;
+        self.cur_image_idx = index;
+        Ok(())
     }
 
     pub fn origin(&self) -> Option<[f64; 2]> {
@@ -130,6 +151,14 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         }
     }
 
+    pub fn select_raster_band(&mut self, band: u8) -> TiffResult<()> {
+        if band < 1 || band > self.num_bands() {
+            return Err(TiffError::LimitsExceeded);
+        }
+        self.band_idx = band - 1;
+        Ok(())
+    }
+
     /// Image dimensions or (0, 0) if undefined.
     fn dimensions_or_zero(&mut self) -> (u32, u32) {
         self.decoder.dimensions().unwrap_or((0, 0))
@@ -140,13 +169,23 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         self.decoder.chunk_dimensions()
     }
 
+    /// band count of current image.
+    fn num_bands(&mut self) -> u8 {
+        self.image_info().samples
+    }
+
     /// Samples per pixel
-    fn spp(&mut self) -> usize {
-        match self.decoder.colortype() {
-            Ok(tiff::ColorType::Gray(_)) => 1,
-            Ok(tiff::ColorType::RGB(_)) => 3,
-            Ok(tiff::ColorType::RGBA(_)) => 4,
-            _ => 1, // unsupported
+    fn spp(&mut self) -> u8 {
+        match self.image_info().planar_config {
+            Some(PlanarConfiguration::Planar) => 1,
+            _ => {
+                match self.decoder.colortype() {
+                    Ok(tiff::ColorType::Gray(_)) => 1,
+                    Ok(tiff::ColorType::RGB(_)) => 3,
+                    Ok(tiff::ColorType::RGBA(_)) => 4,
+                    _ => 1, // unsupported
+                }
+            }
         }
     }
 
@@ -157,10 +196,11 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
             return RasterValue::NoData;
         }
         let chunk_dims = self.chunk_dimensions();
-        let image = TileAttributes::from_dims(image_dims, chunk_dims);
-        let chunk_index = image.get_chunk_index(x, y);
+        let tiles =
+            TileAttributes::from_dims(image_dims, chunk_dims, self.image_info().planar_config);
+        let chunk_index = tiles.get_chunk_index(x, y, self.band_idx);
         let spp = self.spp();
-        let offset = image.get_chunk_offset(x, y, spp);
+        let offset = tiles.get_chunk_offset(chunk_index, x, y, spp);
         let chunk = self.decoder.read_chunk(chunk_index).unwrap();
         raster_value(&chunk, offset, spp)
     }
@@ -171,7 +211,8 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     pub fn pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Pixels<R> {
         let image_dims = self.dimensions_or_zero();
         let chunk_dims = self.decoder.chunk_dimensions();
-        let dims = TileAttributes::from_dims(image_dims, chunk_dims);
+        let dims =
+            TileAttributes::from_dims(image_dims, chunk_dims, self.image_info().planar_config);
         let spp = self.spp();
         Pixels {
             decoder: &mut self.decoder,
@@ -183,29 +224,13 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
             row: 0,
             dims,
             spp,
+            band_idx: self.band_idx,
             min_x: x,
             min_y: y,
             max_x: x + width,
             max_y: y + height,
         }
     }
-
-    // fn read_image(&mut self) {
-    //     let tiles = self.decoder.tile_count().unwrap();
-    //     dbg!(tiles);
-    //     dbg!(self.decoder.chunk_dimensions());
-
-    //     for tile in 0..tiles {
-    //         // tiles in row major order
-    //         dbg!(self.decoder.chunk_data_dimensions(tile));
-    //         match self.decoder.read_chunk(tile).unwrap() {
-    //             DecodingResult::U16(res) => {
-    //                 let _sum: u64 = res.into_iter().map(<u64>::from).sum();
-    //             }
-    //             _ => panic!("Wrong bit depth"),
-    //         }
-    //     }
-    // }
 }
 
 impl ImageInfo {
@@ -217,12 +242,31 @@ impl ImageInfo {
             Ok(ifd::Value::Unsigned(v)) => PhotometricInterpretation::from_u16(v as u16),
             _ => None,
         };
+        let planar_config = match decoder.get_tag(Tag::PlanarConfiguration) {
+            Ok(ifd::Value::Unsigned(v)) => PlanarConfiguration::from_u16(v as u16),
+            _ => None,
+        };
+
+        let samples = decoder
+            .find_tag(Tag::SamplesPerPixel)
+            .unwrap()
+            .map(ifd::Value::into_u16)
+            .transpose()
+            .unwrap()
+            .unwrap_or(1)
+            .try_into()
+            .unwrap();
+
+        // https://awaresystems.be/imaging/tiff/tifftags/newsubfiletype.html
+        // https://gdal.org/drivers/raster/gtiff.html#internal-nodata-masks
         let _subfile_type = decoder.get_tag_u64(Tag::NewSubfileType);
 
         ImageInfo {
             dimensions,
             colortype,
             photometric_interpretation,
+            planar_config,
+            samples,
         }
     }
 }
@@ -238,7 +282,8 @@ pub struct Pixels<'a, R: Read + Seek> {
     row: u32,
     dims: TileAttributes,
     // Samples per pixel (Gray=1, RGB (single band) = 3, etc.)
-    spp: usize,
+    spp: u8,
+    band_idx: u8,
     min_x: u32,
     min_y: u32,
     max_x: u32,
@@ -259,12 +304,15 @@ impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
             let (w, h) = (self.dims.tile_width as u32, self.dims.tile_length as u32);
             if self.x % w < w - 1 && self.x + 1 < self.max_x {
                 self.x += 1;
-                self.offset += self.spp;
+                self.offset += self.spp as usize;
             } else if self.y % h + 1 < h && self.y + 1 < self.max_y {
                 // next row in chunk
                 self.y += 1;
                 self.x = (self.col * w).max(self.min_x);
-                self.offset = self.dims.get_chunk_offset(self.x, self.y, self.spp);
+                let chunk_index = self.dims.get_chunk_index(self.x, self.y, self.band_idx);
+                self.offset = self
+                    .dims
+                    .get_chunk_offset(chunk_index, self.x, self.y, self.spp);
             } else {
                 // next chunk
                 if self.x + 1 < self.max_x {
@@ -286,15 +334,17 @@ impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
 
 impl<'a, R: Read + Seek> Pixels<'a, R> {
     fn read_chunk(&mut self) {
-        let chunk_index = self.dims.get_chunk_index(self.x, self.y);
+        let chunk_index = self.dims.get_chunk_index(self.x, self.y, self.band_idx);
         self.row = chunk_index / self.dims.tiles_across() as u32;
         self.col = chunk_index % self.dims.tiles_across() as u32;
         self.chunk = self.decoder.read_chunk(chunk_index);
-        self.offset = self.dims.get_chunk_offset(self.x, self.y, self.spp);
+        self.offset = self
+            .dims
+            .get_chunk_offset(chunk_index, self.x, self.y, self.spp);
     }
 }
 
-fn raster_value(chunk: &DecodingResult, offset: usize, spp: usize) -> RasterValue {
+fn raster_value(chunk: &DecodingResult, offset: usize, spp: u8) -> RasterValue {
     match chunk {
         DecodingResult::U8(chunk) => match spp {
             3 => {
@@ -368,15 +418,22 @@ pub(crate) struct TileAttributes {
 
     pub tile_width: usize,
     pub tile_length: usize,
+
+    planar_config: PlanarConfiguration,
 }
 
 impl TileAttributes {
-    pub fn from_dims(image_dims: (u32, u32), chunk_dims: (u32, u32)) -> Self {
+    pub fn from_dims(
+        image_dims: (u32, u32),
+        chunk_dims: (u32, u32),
+        planar_config: Option<PlanarConfiguration>,
+    ) -> Self {
         TileAttributes {
             image_width: image_dims.0 as usize,
             image_height: image_dims.1 as usize,
             tile_width: chunk_dims.0 as usize,
             tile_length: chunk_dims.1 as usize,
+            planar_config: planar_config.unwrap_or(PlanarConfiguration::Chunky),
         }
     }
     pub fn tiles_across(&self) -> usize {
@@ -409,24 +466,34 @@ impl TileAttributes {
 
         (padding_right, padding_down)
     }
+
     /// Return tile or stripe index of a pixel
-    fn get_chunk_index(&self, x: u32, y: u32) -> u32 {
-        assert!(x < self.image_width as u32);
-        assert!(y < self.image_height as u32);
-        let x_chunks = x as usize / self.tile_width;
-        let y_chunks = y as usize / self.tile_length;
-        let chunk_index = y_chunks * self.tiles_across() + x_chunks;
+    fn get_chunk_index(&self, x: u32, y: u32, band: u8) -> u32 {
+        let x = x as usize;
+        let y = y as usize;
+        let band = band as usize;
+        assert!(x < self.image_width);
+        assert!(y < self.image_height);
+        let band_offset = match self.planar_config {
+            PlanarConfiguration::Planar => (self.image_height / self.tile_length) * band,
+            _ => 0,
+        };
+        let x_chunks = x / self.tile_width;
+        let y_chunks = y / self.tile_length;
+        let chunk_index = band_offset + y_chunks * self.tiles_across() + x_chunks;
         chunk_index as u32
     }
 
     /// Return offset of a pixel in tile or stripe
-    fn get_chunk_offset(&self, x: u32, y: u32, spp: usize) -> usize {
-        let tile = self.get_chunk_index(x, y);
-        let (padding_right, padding_down) = self.get_padding(tile as usize);
+    fn get_chunk_offset(&self, idx: u32, x: u32, y: u32, spp: u8) -> usize {
+        let (padding_right, padding_down) = self.get_padding(idx as usize);
+        let x = x as usize;
+        let y = y as usize;
+        let spp = spp as usize;
         let w = self.tile_width - padding_right;
         let h = self.tile_length - padding_down;
-        let x_offset = x as usize % w;
-        let y_offset = y as usize % h;
+        let x_offset = x % w;
+        let y_offset = y % h;
         let offset = y_offset * w + x_offset;
         offset * spp
     }
