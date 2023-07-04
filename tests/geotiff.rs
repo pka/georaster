@@ -466,6 +466,17 @@ fn rgb() {
 fn rgb_bands() {
     let img_file =
         BufReader::new(File::open("data/tiff/sat_multiband.tif").expect("Open image file"));
-    let tiff = GeoTiffReader::open(img_file);
-    assert!(tiff.is_err()); // FormatError(InconsistentSizesEncountered)
+    let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
+    let img = tiff.images().get(0).expect("Image info");
+    assert_eq!(img.dimensions, Some((200, 200)));
+    assert_eq!(img.colortype, Some(tiff::ColorType::RGB(8)));
+    assert_eq!(tiff.origin(), Some([2747994.2968, 1205137.2435]));
+    assert_eq!(
+        tiff.pixel_size(),
+        Some([1.8898895579756552, -1.8898895306859578])
+    );
+    assert_eq!(tiff.geo_params, Some("CH1903+ / LV95|CH1903+|".to_string()));
+
+    // convert -quiet data/tiff/sat_multiband.tif[0] -crop 1x1+124+9 txt:
+    assert_eq!(tiff.read_pixel(124, 9), RasterValue::U8(18));
 }
