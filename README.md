@@ -1,5 +1,7 @@
-georaster
-=========
+# georaster
+
+[![crates.io version](https://img.shields.io/crates/v/georaster.svg)](https://crates.io/crates/georaster)
+[![docs.rs docs](https://docs.rs/georaster/badge.svg)](https://docs.rs/georaster)
 
 Rust library for accessing geospatial raster images.
 
