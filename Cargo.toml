@@ -10,14 +10,15 @@ repository = "https://github.com/pka/georaster"
 readme = "README.md"
 license = "MIT/Apache-2.0"
 keywords = ["tiff", "geo"]
+categories = ["science::geo", "multimedia::images"]
 exclude = [
     "data",    
 ]
 
 [dependencies]
-tiff = { git = "https://github.com/image-rs/image-tiff" }
+tiff = "0.9.1"
 
 [dev-dependencies]
-image = "0.24.5"
-http-range-client = "0.7.0"
+image = "0.24.7"
+http-range-client = "0.7.2"
 env_logger = "0.10.0"
