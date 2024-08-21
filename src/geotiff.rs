@@ -10,6 +10,8 @@ use tiff::decoder::{ifd, Decoder, DecodingResult};
 use tiff::tags::{PhotometricInterpretation, PlanarConfiguration, Tag};
 use tiff::{TiffError, TiffResult};
 
+use crate::Coordinate;
+
 /// GeoTIFF file reader
 pub struct GeoTiffReader<R: Read + Seek> {
     decoder: Decoder<R>,
@@ -190,6 +192,13 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     }
 
     /// Return raster value at offset x/y
+    ///
+    /// ```rust
+    /// let img_file = BufReader::new(File::open("data/tiff/utm.tif").unwrap());
+    /// let mut tiff = GeoTiffReader::open(img_file).unwrap();
+    ///
+    /// let value = tiff.read_pixel(0, 0);
+    /// ```
     pub fn read_pixel(&mut self, x: u32, y: u32) -> RasterValue {
         let image_dims = self.dimensions_or_zero();
         if x >= image_dims.0 || y >= image_dims.1 {
@@ -203,6 +212,26 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         let offset = tiles.get_chunk_offset(chunk_index, x, y, spp);
         let chunk = self.decoder.read_chunk(chunk_index).unwrap();
         raster_value(&chunk, offset, spp)
+    }
+
+    /// Return raster value at geographical location
+    ///
+    /// This function converts a geolocation to the corresponding pixel location
+    /// and reads it with the `read_pixel` function
+    ///
+    /// ```rust
+    /// let img_file = BufReader::new(File::open("data/tiff/utm.tif").unwrap());
+    /// let mut tiff = GeoTiffReader::open(img_file).unwrap();
+    ///
+    /// let location = Coordinate { x: 0.0, y: 0.0 };
+    /// let value = tiff.read_pixel_at_location(&location);
+    /// ```
+    pub fn read_pixel_at_location(&mut self, coord: &Coordinate) -> RasterValue {
+        if let Some((x, y)) = self.coord_to_pixel(coord) {
+            return self.read_pixel(x, y);
+        } else {
+            return RasterValue::NoData;
+        }
     }
 
     /// Returns an Iterator over the pixels of an image part.
@@ -230,6 +259,30 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
             max_x: x + width,
             max_y: y + height,
         }
+    }
+
+    /// Converts a `Coordinate` into pixel based on the geoinformation in the tiff
+    ///
+    /// Returns the `None` variant when geoinformation is not available.
+    pub fn coord_to_pixel(&self, coord: &Coordinate) -> Option<(u32, u32)> {
+        let (origin_x, origin_y) = self.origin()?.into();
+        let (pixel_size_x, pixel_size_y) = self.pixel_size()?.into();
+        Some((
+            ((coord.x - origin_x) / pixel_size_x).round() as u32,
+            ((coord.y - origin_y) / pixel_size_y).round() as u32,
+        ))
+    }
+
+    /// Converts a pixel position into geocoordinates
+    ///
+    /// Returns the `None` variant when geoinformation is not available.
+    pub fn pixel_to_coord(&self, x: u32, y: u32) -> Option<Coordinate> {
+        let (origin_x, origin_y) = self.origin()?.into();
+        let (pixel_size_x, pixel_size_y) = self.pixel_size()?.into();
+        Some(Coordinate {
+            x: x as f64 * pixel_size_x + origin_x,
+            y: y as f64 * pixel_size_y + origin_y,
+        })
     }
 }
 
