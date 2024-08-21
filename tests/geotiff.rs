@@ -6,9 +6,6 @@ use std::fs::File;
 use std::io::BufReader;
 use tiff::tags::PhotometricInterpretation;
 
-#[cfg(feature = "geo-crate")]
-use geo::{Coord, coord};
-
 #[test]
 fn single_band() {
     let img_file =
@@ -494,9 +491,9 @@ fn read_coord() {
     let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
 
     let location = Coordinate { x: -90.0, y: 45.0 };
-    let (pixel_x, pixel_y) = tiff.coord_to_pixel(&location).unwrap();
+    let (pixel_x, pixel_y) = tiff.coord_to_pixel(location).unwrap();
 
-    let value = tiff.read_pixel_at_location(&location);
+    let value = tiff.read_pixel_at_location(location);
 
     assert_eq!(value, tiff.read_pixel(pixel_x, pixel_y));
 
@@ -510,7 +507,7 @@ fn convert_pixel_coordinates() {
     let tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
     let location = Coordinate { x: 0.0, y: 0.0 };
 
-    let (x, y) = tiff.coord_to_pixel(&location).unwrap();
+    let (x, y) = tiff.coord_to_pixel(location).unwrap();
     assert_eq!(x, 200);
     assert_eq!(y, 100);
     let rev_location = tiff.pixel_to_coord(x, y).unwrap();
@@ -518,7 +515,7 @@ fn convert_pixel_coordinates() {
 
     let location = Coordinate { x: -90.0, y: 45.0 };
 
-    let (x, y) = tiff.coord_to_pixel(&location).unwrap();
+    let (x, y) = tiff.coord_to_pixel(location).unwrap();
     assert_eq!(x, 100);
     assert_eq!(y, 50);
     let rev_location = tiff.pixel_to_coord(x, y).unwrap();
@@ -528,15 +525,41 @@ fn convert_pixel_coordinates() {
 #[cfg(feature = "geo-crate")]
 #[test]
 fn geo_conversion() {
+    use geo::{coord, Coord};
+
     let coord = coord! { x: 1.2345, y: 6.7890 };
     let coordinate: Coordinate = coord.clone().into();
 
     assert_eq!(coord.x, coordinate.x);
     assert_eq!(coord.y, coordinate.y);
 
-    let coordinate = Coordinate {x: 12.345, y: 67.890};
+    let coordinate = Coordinate {
+        x: 12.345,
+        y: 67.890,
+    };
     let coord: Coord = coordinate.clone().into();
 
     assert_eq!(coord.x, coordinate.x);
     assert_eq!(coord.y, coordinate.y);
+}
+
+#[cfg(feature = "geodesy-crate")]
+#[test]
+fn geodesy_conversion() {
+    use geodesy::{Coor2D, CoordinateTuple};
+
+    let coor2d = Coor2D::geo(1.2345, 6.7890);
+    let coordinate: Coordinate = coor2d.clone().into();
+
+    assert_eq!(coor2d.x(), coordinate.x);
+    assert_eq!(coor2d.y(), coordinate.y);
+
+    let coordinate = Coordinate {
+        x: 12.345,
+        y: 67.890,
+    };
+    let coor2d: Coor2D = coordinate.clone().into();
+
+    assert_eq!(coor2d.x(), coordinate.x);
+    assert_eq!(coor2d.y(), coordinate.y);
 }

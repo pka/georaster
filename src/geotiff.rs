@@ -194,6 +194,9 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// Return raster value at offset x/y
     ///
     /// ```rust
+    /// use std::{fs::File, io::BufReader};
+    /// use georaster::geotiff::GeoTiffReader;
+    ///
     /// let img_file = BufReader::new(File::open("data/tiff/utm.tif").unwrap());
     /// let mut tiff = GeoTiffReader::open(img_file).unwrap();
     ///
@@ -220,13 +223,16 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// and reads it with the `read_pixel` function
     ///
     /// ```rust
+    /// use std::{fs::File, io::BufReader};
+    /// use georaster::{Coordinate, geotiff::GeoTiffReader};
+    ///
     /// let img_file = BufReader::new(File::open("data/tiff/utm.tif").unwrap());
     /// let mut tiff = GeoTiffReader::open(img_file).unwrap();
     ///
     /// let location = Coordinate { x: 0.0, y: 0.0 };
-    /// let value = tiff.read_pixel_at_location(&location);
+    /// let value = tiff.read_pixel_at_location(location);
     /// ```
-    pub fn read_pixel_at_location(&mut self, coord: &Coordinate) -> RasterValue {
+    pub fn read_pixel_at_location(&mut self, coord: impl Into<Coordinate>) -> RasterValue {
         if let Some((x, y)) = self.coord_to_pixel(coord) {
             return self.read_pixel(x, y);
         } else {
@@ -264,9 +270,10 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// Converts a `Coordinate` into pixel based on the geoinformation in the tiff
     ///
     /// Returns the `None` variant when geoinformation is not available.
-    pub fn coord_to_pixel(&self, coord: &Coordinate) -> Option<(u32, u32)> {
+    pub fn coord_to_pixel(&self, coord: impl Into<Coordinate>) -> Option<(u32, u32)> {
         let (origin_x, origin_y) = self.origin()?.into();
         let (pixel_size_x, pixel_size_y) = self.pixel_size()?.into();
+        let coord = coord.into();
         Some((
             ((coord.x - origin_x) / pixel_size_x).round() as u32,
             ((coord.y - origin_y) / pixel_size_y).round() as u32,
