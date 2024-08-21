@@ -6,6 +6,9 @@ use std::fs::File;
 use std::io::BufReader;
 use tiff::tags::PhotometricInterpretation;
 
+#[cfg(feature = "geo-crate")]
+use geo::{Coord, coord};
+
 #[test]
 fn single_band() {
     let img_file =
@@ -520,4 +523,20 @@ fn convert_pixel_coordinates() {
     assert_eq!(y, 50);
     let rev_location = tiff.pixel_to_coord(x, y).unwrap();
     assert_eq!(location, rev_location);
+}
+
+#[cfg(feature = "geo-crate")]
+#[test]
+fn geo_conversion() {
+    let coord = coord! { x: 1.2345, y: 6.7890 };
+    let coordinate: Coordinate = coord.clone().into();
+
+    assert_eq!(coord.x, coordinate.x);
+    assert_eq!(coord.y, coordinate.y);
+
+    let coordinate = Coordinate {x: 12.345, y: 67.890};
+    let coord: Coord = coordinate.clone().into();
+
+    assert_eq!(coord.x, coordinate.x);
+    assert_eq!(coord.y, coordinate.y);
 }
