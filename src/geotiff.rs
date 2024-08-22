@@ -234,9 +234,9 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// ```
     pub fn read_pixel_at_location(&mut self, coord: impl Into<Coordinate>) -> RasterValue {
         if let Some((x, y)) = self.coord_to_pixel(coord) {
-            return self.read_pixel(x, y);
+            self.read_pixel(x, y)
         } else {
-            return RasterValue::NoData;
+            RasterValue::NoData
         }
     }
 
