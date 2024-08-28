@@ -42,7 +42,6 @@ pub struct ImageInfo {
 #[derive(PartialEq, Debug)]
 #[non_exhaustive]
 pub enum RasterValue {
-    NoData,
     U8(u8),
     U16(u16),
     U32(u32),
@@ -76,7 +75,6 @@ impl fmt::Display for RasterValue {
             RasterValue::Rgb16(r, g, b) => write!(f, "({r},{g},{b})"),
             RasterValue::Rgba8(r, g, b, a) => write!(f, "({r},{g},{b},{a})"),
             RasterValue::Rgba16(r, g, b, a) => write!(f, "({r},{g},{b},{a})"),
-            _ => write!(f, "<NoData>"),
         }
     }
 }
@@ -202,10 +200,10 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     ///
     /// let value = tiff.read_pixel(0, 0);
     /// ```
-    pub fn read_pixel(&mut self, x: u32, y: u32) -> RasterValue {
+    pub fn read_pixel(&mut self, x: u32, y: u32) -> Option<RasterValue> {
         let image_dims = self.dimensions_or_zero();
         if x >= image_dims.0 || y >= image_dims.1 {
-            return RasterValue::NoData;
+            return None;
         }
         let chunk_dims = self.chunk_dimensions();
         let tiles =
@@ -232,11 +230,11 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// let location = Coordinate { x: 0.0, y: 0.0 };
     /// let value = tiff.read_pixel_at_location(location);
     /// ```
-    pub fn read_pixel_at_location(&mut self, coord: impl Into<Coordinate>) -> RasterValue {
+    pub fn read_pixel_at_location(&mut self, coord: impl Into<Coordinate>) -> Option<RasterValue> {
         if let Some((x, y)) = self.coord_to_pixel(coord) {
             self.read_pixel(x, y)
         } else {
-            RasterValue::NoData
+            None
         }
     }
 
@@ -388,7 +386,7 @@ impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
             }
         }
         let val = raster_value(self.chunk.as_ref().unwrap(), self.offset, self.spp);
-        Some((self.x, self.y, val))
+        Some((self.x, self.y, val?))
     }
 }
 
@@ -404,7 +402,7 @@ impl<'a, R: Read + Seek> Pixels<'a, R> {
     }
 }
 
-fn raster_value(chunk: &DecodingResult, offset: usize, spp: u8) -> RasterValue {
+fn raster_value(chunk: &DecodingResult, offset: usize, spp: u8) -> Option<RasterValue> {
     match chunk {
         DecodingResult::U8(chunk) => match spp {
             3 => {
@@ -467,7 +465,6 @@ fn raster_value(chunk: &DecodingResult, offset: usize, spp: u8) -> RasterValue {
         DecodingResult::I32(chunk) => chunk.get(offset).map(|v| RasterValue::I32(*v)),
         DecodingResult::I64(chunk) => chunk.get(offset).map(|v| RasterValue::I64(*v)),
     }
-    .unwrap_or(RasterValue::NoData)
 }
 
 // Tile calculation helper from image-tiff

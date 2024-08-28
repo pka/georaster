@@ -49,7 +49,7 @@ fn main() {
     );
 
     tiff.seek_to_image(0).unwrap();
-    assert_eq!(tiff.read_pixel(20000, 8000), RasterValue::I32(372));
+    assert_eq!(tiff.read_pixel(20000, 8000).unwrap(), RasterValue::I32(372));
 
     // Read medium overview
     tiff.seek_to_image(1).unwrap();

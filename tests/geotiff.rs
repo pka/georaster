@@ -20,20 +20,20 @@ fn single_band() {
     assert_eq!(tiff.geo_params, None);
 
     // convert -quiet data/tiff/f32nan_data.tif[0] -crop 1x1+124+9 txt:
-    assert_eq!(tiff.read_pixel(124, 9), RasterValue::F32(0.0050608707));
+    assert_eq!(tiff.read_pixel(124, 9).unwrap(), RasterValue::F32(0.0050608707));
 
     // NaN - comparison is always false
-    if let RasterValue::F32(val) = tiff.read_pixel(0, 0) {
+    if let RasterValue::F32(val) = tiff.read_pixel(0, 0).unwrap() {
         assert!(val.is_nan());
     } else {
         assert!(false, "RasterValue::F32(_)")
     }
 
     // x > width
-    assert_eq!(tiff.read_pixel(128, 64), RasterValue::NoData);
+    assert_eq!(tiff.read_pixel(128, 64), None);
 
     // y > height
-    assert_eq!(tiff.read_pixel(64, 128), RasterValue::NoData);
+    assert_eq!(tiff.read_pixel(64, 128), None);
 
     // convert -quiet data/tiff/f32nan_data.tif[0] -crop 2x2+102+15 txt:
     // 0,0: gray(2.35752%)
@@ -70,7 +70,7 @@ fn byte() {
     assert_eq!(tiff.geo_params, Some("NAD27 / UTM zone 11N|".to_string()));
 
     // convert -quiet data/tiff/byte.tif[0] -crop 1x1+0+0 txt:
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::U8(107));
+    assert_eq!(tiff.read_pixel(0, 0).unwrap(), RasterValue::U8(107));
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn float32() {
     assert_eq!(tiff.pixel_size(), Some([60.0, -60.0]));
     assert_eq!(tiff.geo_params, Some("NAD27 / UTM zone 11N|".to_string()));
 
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::F32(107.0));
+    assert_eq!(tiff.read_pixel(0, 0).unwrap(), RasterValue::F32(107.0));
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn int16() {
     assert_eq!(tiff.geo_params, Some("NAD27 / UTM zone 11N|".to_string()));
 
     // convert -quiet data/tiff/int16.tif[0] -crop 1x1+0+0 txt:
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::I16(107));
+    assert_eq!(tiff.read_pixel(0, 0).unwrap(), RasterValue::I16(107));
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn int32() {
     assert_eq!(tiff.pixel_size(), Some([60.0, -60.0]));
     assert_eq!(tiff.geo_params, Some("NAD27 / UTM zone 11N|".to_string()));
 
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::I32(107));
+    assert_eq!(tiff.read_pixel(0, 0).unwrap(), RasterValue::I32(107));
 }
 
 #[test]
@@ -136,7 +136,7 @@ fn rgbsmall() {
 
     // convert -quiet data/tiff/rgbsmall.tif[0] -crop 1x1+25+25 txt:
     // 0,0: (89,123,37)  #597B25  srgb(89,123,37)
-    assert_eq!(tiff.read_pixel(25, 25), RasterValue::U8(89));
+    assert_eq!(tiff.read_pixel(25, 25).unwrap(), RasterValue::U8(89));
 }
 
 #[test]
@@ -233,20 +233,20 @@ fn small_world() {
 
     // convert -quiet data/tiff/small_world.tif[0] -crop 1x1+0+0 txt:
     // 0,0: (11,10,50)  #0B0A32  srgb(11,10,50)
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::U8(11));
+    assert_eq!(tiff.read_pixel(0, 0).unwrap(), RasterValue::U8(11));
     tiff.select_raster_band(2).unwrap();
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::U8(10));
+    assert_eq!(tiff.read_pixel(0, 0).unwrap(), RasterValue::U8(10));
     tiff.select_raster_band(3).unwrap();
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::U8(50));
+    assert_eq!(tiff.read_pixel(0, 0).unwrap(), RasterValue::U8(50));
 
     // convert -quiet data/tiff/small_world.tif[0] -crop 1x1+399+199 txt:
     // 0,0: (214,204,194)  #D6CCC2  srgb(214,204,194)
     tiff.select_raster_band(1).unwrap();
-    assert_eq!(tiff.read_pixel(399, 199), RasterValue::U8(214));
+    assert_eq!(tiff.read_pixel(399, 199).unwrap(), RasterValue::U8(214));
     tiff.select_raster_band(2).unwrap();
-    assert_eq!(tiff.read_pixel(399, 199), RasterValue::U8(204));
+    assert_eq!(tiff.read_pixel(399, 199).unwrap(), RasterValue::U8(204));
     tiff.select_raster_band(3).unwrap();
-    assert_eq!(tiff.read_pixel(399, 199), RasterValue::U8(194));
+    assert_eq!(tiff.read_pixel(399, 199).unwrap(), RasterValue::U8(194));
 
     // convert -quiet data/tiff/small_world.tif[0] -crop 2x2+30+30 txt:
     // 0,0: (76,83,52)  #4C5334  srgb(76,83,52)
@@ -322,7 +322,7 @@ fn utm() {
         Some(PhotometricInterpretation::BlackIsZero)
     );
 
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::U8(107));
+    assert_eq!(tiff.read_pixel(0, 0).unwrap(), RasterValue::U8(107));
 }
 
 #[test]
@@ -433,10 +433,10 @@ fn rgb() {
     // 1,0: (63,69,31)  #3F451F  srgb(63,69,31)
     // 0,1: (53,64,22)  #354016  srgb(53,64,22)
     // 1,1: (59,70,30)  #3B461E  srgb(59,70,30)
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::Rgb8(59, 65, 27));
-    assert_eq!(tiff.read_pixel(1, 0), RasterValue::Rgb8(63, 69, 31));
-    assert_eq!(tiff.read_pixel(0, 1), RasterValue::Rgb8(53, 64, 22));
-    assert_eq!(tiff.read_pixel(1, 1), RasterValue::Rgb8(59, 70, 30));
+    assert_eq!(tiff.read_pixel(0, 0).unwrap(), RasterValue::Rgb8(59, 65, 27));
+    assert_eq!(tiff.read_pixel(1, 0).unwrap(), RasterValue::Rgb8(63, 69, 31));
+    assert_eq!(tiff.read_pixel(0, 1).unwrap(), RasterValue::Rgb8(53, 64, 22));
+    assert_eq!(tiff.read_pixel(1, 1).unwrap(), RasterValue::Rgb8(59, 70, 30));
 
     let pixels: Vec<_> = tiff.pixels(0, 0, 2, 2).map(|(_x, _y, px)| px).collect();
     assert_eq!(
@@ -481,7 +481,7 @@ fn rgb_bands() {
     assert_eq!(tiff.geo_params, Some("CH1903+ / LV95|CH1903+|".to_string()));
 
     // convert -quiet data/tiff/sat_multiband.tif[0] -crop 1x1+124+9 txt:
-    assert_eq!(tiff.read_pixel(124, 9), RasterValue::U8(18));
+    assert_eq!(tiff.read_pixel(124, 9).unwrap(), RasterValue::U8(18));
 }
 
 #[test]
@@ -493,9 +493,9 @@ fn read_coord() {
     let location = Coordinate { x: -90.0, y: 45.0 };
     let (pixel_x, pixel_y) = tiff.coord_to_pixel(location).unwrap();
 
-    let value = tiff.read_pixel_at_location(location);
+    let value = tiff.read_pixel_at_location(location).unwrap();
 
-    assert_eq!(value, tiff.read_pixel(pixel_x, pixel_y));
+    assert_eq!(value, tiff.read_pixel(pixel_x, pixel_y).unwrap());
 
     assert_eq!(value, RasterValue::U8(60));
 }
