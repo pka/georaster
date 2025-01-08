@@ -546,14 +546,13 @@ impl TileAttributes {
 
     /// Return offset of a pixel in tile or stripe
     fn get_chunk_offset(&self, idx: u32, x: u32, y: u32, spp: u8) -> usize {
-        let (padding_right, padding_down) = self.get_padding(idx as usize);
+        let (padding_right, _padding_down) = self.get_padding(idx as usize);
         let x = x as usize;
         let y = y as usize;
         let spp = spp as usize;
         let w = self.tile_width - padding_right;
-        let h = self.tile_length - padding_down;
-        let x_offset = x % w;
-        let y_offset = y % h;
+        let x_offset = x % self.tile_width;
+        let y_offset = y % self.tile_length;
         let offset = y_offset * w + x_offset;
         offset * spp
     }
