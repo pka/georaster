@@ -522,6 +522,33 @@ fn convert_pixel_coordinates() {
     assert_eq!(location, rev_location);
 }
 
+#[test]
+fn incomplete_strips() {
+    // // Code to create file
+    // let mut file = File::create("data/tiff/incomplete_strips.tiff").unwrap();
+    // let mut tiff = tiff::encoder::TiffEncoder::new(&mut file).unwrap();
+    // let mut image = tiff.new_image::<tiff::encoder::colortype::Gray8>(1, 9).unwrap();
+
+    // // Set strips, such that the last one is smaller (4 instead of 5 rows)
+    // image.rows_per_strip(5).unwrap();
+
+    // image.write_data(&[0, 1, 2, 3, 4, 5, 6, 7, 8].map(|it| it * 20)).unwrap();
+
+    // drop(file);
+
+    // Read the file and see if the content is the same.
+    let file = File::open("data/tiff/incomplete_strips.tiff").unwrap();
+    let mut decoder = GeoTiffReader::open(file).unwrap();
+    let (width, height) = decoder.image_info().dimensions.unwrap();
+    for (x, y, pixel) in decoder.pixels(0, 0, width, height) {
+        if let RasterValue::U8(f) = pixel {
+            assert_eq!(f, 20 * y as u8, "Failed for pixel (x = {x}, y = {y})");
+        } else {
+            panic!("Unexpected format: {:?}", pixel);
+        }
+    }
+}
+
 #[cfg(feature = "geo-crate")]
 #[test]
 fn geo_conversion() {
