@@ -54,7 +54,7 @@ fn main() -> std::io::Result<()> {
 }
 
 fn grey2ascii(luminance: f32) -> char {
-    assert!(luminance >= 0.0 && luminance <= 1.0);
+    assert!((0.0..=1.0).contains(&luminance));
     let ascii_scale = " .:-=+░▒▓▓";
     //let ascii_scale = " .:-=+*#%@";
     let char_index = ((ascii_scale.chars().count() - 1) as f32 * luminance).round();

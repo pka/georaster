@@ -35,7 +35,7 @@ fn main() {
 
     let mut tiff = GeoTiffReader::open(img_reader).expect("Cannot create decoder");
 
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((41999, 17610)));
     assert_eq!(img.colortype, Some(tiff::ColorType::Gray(32)));
     assert_eq!(tiff.origin(), Some([-20037506.48796601, 8401593.447238375]));

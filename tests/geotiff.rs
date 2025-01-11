@@ -12,7 +12,7 @@ fn single_band() {
         BufReader::new(File::open("data/tiff/f32nan_data.tif").expect("Open image file"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
 
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((128, 128)));
     assert_eq!(img.colortype, Some(tiff::ColorType::Gray(32)));
     assert_eq!(tiff.origin(), Some([0.0, 0.0]));
@@ -62,7 +62,7 @@ fn byte() {
     let img_file = BufReader::new(File::open("data/tiff/byte.tif").expect("Open image file"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
 
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((20, 20)));
     assert_eq!(img.colortype, Some(tiff::ColorType::Gray(8)));
     assert_eq!(tiff.origin(), Some([440720.0, 3751320.0]));
@@ -78,7 +78,7 @@ fn float32() {
     let img_file = BufReader::new(File::open("data/tiff/float32.tif").expect("Open image file"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
 
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((20, 20)));
     assert_eq!(img.colortype, Some(tiff::ColorType::Gray(32)));
     assert_eq!(tiff.origin(), Some([440720.0, 3751320.0]));
@@ -93,7 +93,7 @@ fn int16() {
     let img_file = BufReader::new(File::open("data/tiff/int16.tif").expect("Open image file"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
 
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((20, 20)));
     assert_eq!(img.colortype, Some(tiff::ColorType::Gray(16)));
     assert_eq!(tiff.origin(), Some([440720.0, 3751320.0]));
@@ -109,7 +109,7 @@ fn int32() {
     let img_file = BufReader::new(File::open("data/tiff/int32.tif").expect("Open image file"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
 
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((20, 20)));
     assert_eq!(img.colortype, Some(tiff::ColorType::Gray(32)));
     assert_eq!(tiff.origin(), Some([440720.0, 3751320.0]));
@@ -123,7 +123,7 @@ fn int32() {
 fn rgbsmall() {
     let img_file = BufReader::new(File::open("data/tiff/rgbsmall.tif").expect("Open image file"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((50, 50)));
     assert_eq!(img.colortype, Some(tiff::ColorType::RGB(8)));
     assert_eq!(tiff.origin(), Some([-44.84032, -22.932584]));
@@ -220,7 +220,7 @@ fn small_world() {
     //         chunk_offsets: [
     //         ...
 
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((400, 200)));
     assert_eq!(img.colortype, Some(tiff::ColorType::RGB(8)));
     assert_eq!(tiff.origin(), Some([-180.0, 90.0]));
@@ -293,7 +293,7 @@ fn small_world_pct() {
     let img_file =
         BufReader::new(File::open("data/tiff/small_world_pct.tif").expect("Open image file"));
     let tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((400, 200)));
     assert_eq!(img.colortype, None);
     assert_eq!(tiff.origin(), Some([-180.0, 90.0]));
@@ -311,7 +311,7 @@ fn small_world_pct() {
 fn utm() {
     let img_file = BufReader::new(File::open("data/tiff/utm.tif").expect("Open image file"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((512, 512)));
     assert_eq!(img.colortype, Some(tiff::ColorType::Gray(8)));
     assert_eq!(tiff.origin(), Some([440720.0, 3751320.0]));
@@ -414,7 +414,7 @@ fn rgb() {
     //         ],
     //     },
     // }
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((200, 200)));
     assert_eq!(img.colortype, Some(tiff::ColorType::RGB(8)));
     assert_eq!(tiff.origin(), Some([2747994.2968, 1205137.2435]));
@@ -470,7 +470,7 @@ fn rgb_bands() {
     let img_file =
         BufReader::new(File::open("data/tiff/sat_multiband.tif").expect("Open image file"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
-    let img = tiff.images().get(0).expect("Image info");
+    let img = tiff.images().first().expect("Image info");
     assert_eq!(img.dimensions, Some((200, 200)));
     assert_eq!(img.colortype, Some(tiff::ColorType::RGB(8)));
     assert_eq!(tiff.origin(), Some([2747994.2968, 1205137.2435]));

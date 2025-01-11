@@ -15,7 +15,7 @@ fn main() {
         .split(&['x', '+'])
         .map(|s| u32::from_str(s).expect("Invalid number"))
         .collect();
-    let w = *parts.get(0).expect("witdh missing");
+    let w = *parts.first().expect("witdh missing");
     let h = *parts.get(1).expect("height missing");
     let x0 = *parts.get(2).unwrap_or(&0);
     let y0 = *parts.get(3).unwrap_or(&0);

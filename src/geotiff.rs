@@ -350,7 +350,7 @@ pub struct Pixels<'a, R: Read + Seek> {
     max_y: u32,
 }
 
-impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
+impl<R: Read + Seek> Iterator for Pixels<'_, R> {
     type Item = (u32, u32, RasterValue);
 
     fn next(&mut self) -> Option<(u32, u32, RasterValue)> {
@@ -392,7 +392,7 @@ impl<'a, R: Read + Seek> Iterator for Pixels<'a, R> {
     }
 }
 
-impl<'a, R: Read + Seek> Pixels<'a, R> {
+impl<R: Read + Seek> Pixels<'_, R> {
     fn read_chunk(&mut self) {
         let chunk_index = self.dims.get_chunk_index(self.x, self.y, self.band_idx);
         self.row = chunk_index / self.dims.tiles_across() as u32;
@@ -497,10 +497,10 @@ impl TileAttributes {
         }
     }
     pub fn tiles_across(&self) -> usize {
-        (self.image_width + self.tile_width - 1) / self.tile_width
+        self.image_width.div_ceil(self.tile_width)
     }
     pub fn tiles_down(&self) -> usize {
-        (self.image_height + self.tile_length - 1) / self.tile_length
+        self.image_height.div_ceil(self.tile_length)
     }
     fn padding_right(&self) -> usize {
         (self.tile_width - self.image_width % self.tile_width) % self.tile_width
