@@ -1,6 +1,6 @@
 [package]
 name = "georaster"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Pirmin Kalberer <pka@sourcepole.ch>"]
 edition = "2021"
 
@@ -11,9 +11,11 @@ readme = "README.md"
 license = "MIT/Apache-2.0"
 keywords = ["tiff", "geo"]
 categories = ["science::geo", "multimedia::images"]
-exclude = [
-    "data",    
-]
+exclude = ["data"]
+
+[features]
+geo-crate = ["dep:geo"]
+geodesy-crate = ["dep:geodesy"]
 
 [dependencies]
 geo = { version = "0.28.0", optional = true }
@@ -24,7 +26,3 @@ tiff = "0.9.1"
 image = "0.25.2"
 http-range-client = "0.8.0"
 env_logger = "0.11.5"
-
-[features]
-geo-crate = ["dep:geo"]
-geodesy-crate = ["dep:geodesy"]
