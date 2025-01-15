@@ -17,6 +17,6 @@ fn main() {
 
     let img_file = BufReader::new(File::open(src_fn).expect("Open input file"));
     let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
-    let pixel = tiff.read_pixel(x, y);
+    let pixel = tiff.read_pixel(x, y).unwrap();
     println!("{pixel}");
 }

@@ -106,7 +106,7 @@ fn main() {
     );
 
     tiff.seek_to_image(0).unwrap();
-    assert_eq!(tiff.read_pixel(0, 0), RasterValue::U16(636));
+    assert_eq!(tiff.read_pixel(0, 0).unwrap(), RasterValue::U16(636));
 
     let max_height = tiff
         .pixels(2500, 3000, 100, 100)
