@@ -1,0 +1,52 @@
+#!/usr/bin/env just --justfile
+
+# if running in CI, treat warnings as errors by setting RUSTFLAGS and RUSTDOCFLAGS to '-D warnings' unless they are already set
+# Use `CI=true just ci-test` to run the same tests as in GitHub CI.
+# Use `just env-info` to see the current values of RUSTFLAGS and RUSTDOCFLAGS
+ci_mode := if env('CI', '') != '' {'1'} else {''}
+export RUSTFLAGS := env('RUSTFLAGS', if ci_mode == '1' {'-D warnings'} else {''})
+export RUSTDOCFLAGS := env('RUSTDOCFLAGS', if ci_mode == '1' {'-D warnings'} else {''})
+export RUST_BACKTRACE := env('RUST_BACKTRACE', if ci_mode == '1' {'1'} else {''})
+
+@_default:
+    {{just_executable()}} --list
+
+# Quick compile without building a binary
+check:
+    cargo check
+    @echo "--------------  Checking individual crate features"
+    cargo check --features geo-crate
+    cargo check --features geodesy-crate
+    cargo check --all-features
+
+# Run all tests as expected by CI
+ci-test: test-fmt clippy check test test-doc
+
+# Run cargo clippy to lint the code
+clippy *args:
+    cargo clippy {{args}}
+    cargo clippy --all-features {{args}}
+
+# Reformat all code `cargo fmt`.
+fmt:
+    cargo fmt --all
+
+# Run all unit and integration tests
+test:
+    cargo test
+    cargo test --doc
+    @echo "--------------  Testing individual crate features"
+    cargo test --features geo-crate
+    cargo test --features geodesy-crate
+    cargo test --all-features
+
+# Build and open code documentation
+docs *args='--open':
+    DOCS_RS=1 cargo doc --no-deps {{args}}
+
+# Test documentation generation
+test-doc:  (docs '')
+
+# Test code formatting
+test-fmt:
+    cargo fmt --all -- --check
