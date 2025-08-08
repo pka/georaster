@@ -65,9 +65,9 @@ impl From<[f64; 2]> for Coordinate {
 use geo::{coord, Coord};
 
 #[cfg(feature = "geo-crate")]
-impl Into<Coord> for Coordinate {
-    fn into(self) -> Coord {
-        coord! { x: self.x, y: self.y }
+impl From<Coordinate> for Coord {
+    fn from(val: Coordinate) -> Self {
+        coord! { x: val.x, y: val.y }
     }
 }
 
@@ -85,9 +85,9 @@ impl From<Coord> for Coordinate {
 use geodesy::{Coor2D, CoordinateTuple};
 
 #[cfg(feature = "geodesy-crate")]
-impl Into<Coor2D> for Coordinate {
-    fn into(self) -> Coor2D {
-        Coor2D::raw(self.x, self.y)
+impl From<Coordinate> for Coor2D {
+    fn from(val: Coordinate) -> Self {
+        Coor2D::raw(val.x, val.y)
     }
 }
 
