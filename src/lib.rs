@@ -2,5 +2,6 @@
 
 pub mod geo;
 pub mod geotiff;
+pub mod pmtiles;
 
 pub use geo::Coordinate;
