@@ -2,6 +2,7 @@
 
 pub mod geo;
 pub mod geotiff;
+#[cfg(feature = "pmtiles")]
 pub mod pmtiles;
 
 pub use geo::Coordinate;
@@ -16,10 +17,13 @@ pub enum GeorasterError {
     Io(#[from] std::io::Error),
     #[error("Tiff error - {0}")]
     Tiff(#[from] tiff::TiffError),
+    #[cfg(feature = "pmtiles")]
     #[error("Image error - {0}")]
     Image(#[from] image::ImageError),
+    #[cfg(feature = "pmtiles")]
     #[error("PMTiles error - {0}")]
     Pmt(#[from] pmt::PmtError),
+    #[cfg(feature = "pmtiles")]
     #[error("TMS error - {0}")]
     Tms(#[from] tile_grid::TmsError),
 }
