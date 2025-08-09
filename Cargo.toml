@@ -18,10 +18,12 @@ geo-crate = ["dep:geo"]
 geodesy-crate = ["dep:geodesy"]
 
 [dependencies]
-bytes = "1.10.1"
 geo = { version = "0.30.0", optional = true }
 geodesy = { version = "0.13.0", optional = true }
-pmtiles = { version = "0.15.0", default-features = false, features = ["mmap-async-tokio"] }
+image = "0.25.2"
+pmtiles = { version = "0.15.0", default-features = false, features = [
+    "mmap-async-tokio",
+] }
 tiff = "0.9.1"
 
 [dev-dependencies]
