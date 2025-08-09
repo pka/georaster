@@ -1,21 +1,22 @@
 use crate::geotiff::RasterValue;
+use crate::GeorasterResult;
 use image::{DynamicImage, GenericImageView, ImageReader, Pixel};
-use pmtiles::{AsyncPmTilesReader, PmtError, PmtResult, TileCoord};
+use pmt::{AsyncPmTilesReader, PmtError, TileCoord};
 use std::io::Cursor;
 
 /// PMTiles raster reader
 pub struct PmtilesRasterReader {
-    reader: AsyncPmTilesReader<pmtiles::MmapBackend>,
+    reader: AsyncPmTilesReader<pmt::MmapBackend>,
 }
 
 impl PmtilesRasterReader {
-    pub async fn open(name: &str) -> PmtResult<Self> {
+    pub async fn open(name: &str) -> GeorasterResult<Self> {
         // Use `new_with_cached_path` for better performance
         let reader = AsyncPmTilesReader::new_with_path(name).await?;
         Ok(Self { reader })
     }
 
-    pub async fn get_tile(&self, z: u8, x: u32, y: u32) -> PmtResult<DynamicImage> {
+    pub async fn get_tile(&self, z: u8, x: u32, y: u32) -> GeorasterResult<DynamicImage> {
         let coord = TileCoord::new(z, x, y).ok_or(PmtError::InvalidEntry)?;
         let bytes = self
             .reader
@@ -25,8 +26,7 @@ impl PmtilesRasterReader {
 
         let img = ImageReader::new(Cursor::new(bytes))
             .with_guessed_format()?
-            .decode()
-            .unwrap();
+            .decode()?;
         Ok(img)
     }
 
@@ -37,7 +37,7 @@ impl PmtilesRasterReader {
         y: u32,
         px: u32,
         py: u32,
-    ) -> PmtResult<RasterValue> {
+    ) -> GeorasterResult<RasterValue> {
         let tile = self.get_tile(z, x, y).await?;
         let [r, g, b, a] = tile.get_pixel(px, py).to_rgba().0;
         Ok(RasterValue::Rgba8(r, g, b, a))
@@ -62,6 +62,15 @@ mod tests {
             RasterValue::Rgba8(131, 4, 183, 255)
         );
         //assert_eq!(get_tile(10, 532, 359).await.unwrap().len(), 316992);
+    }
+
+    #[tokio::test]
+    async fn invalid_tiles() {
+        let pmtiles = test_tiles().await;
+        assert_eq!(
+            pmtiles.get_tile(12, 0, 0).await.err().unwrap().to_string(),
+            "PMTiles error - Invalid PMTiles entry"
+        );
     }
 
     #[tokio::test]

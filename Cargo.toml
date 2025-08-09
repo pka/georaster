@@ -21,9 +21,10 @@ geodesy-crate = ["dep:geodesy"]
 geo = { version = "0.30.0", optional = true }
 geodesy = { version = "0.13.0", optional = true }
 image = "0.25.2"
-pmtiles = { version = "0.15.0", default-features = false, features = [
+pmt = { package = "pmtiles", version = "0.15.0", default-features = false, features = [
     "mmap-async-tokio",
 ] }
+thiserror = "2.0.12"
 tiff = "0.9.1"
 
 [dev-dependencies]
