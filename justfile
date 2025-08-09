@@ -15,8 +15,9 @@ export RUST_BACKTRACE := env('RUST_BACKTRACE', if ci_mode == '1' {'1'} else {''}
 check:
     cargo check
     @echo "--------------  Checking individual crate features"
-    cargo check --features geo-crate
-    cargo check --features geodesy-crate
+    cargo check --features pmtiles
+    cargo check --features geo
+    cargo check --features geodesy
     cargo check --all-features
 
 # Run all tests as expected by CI
@@ -36,8 +37,9 @@ test:
     cargo test
     cargo test --doc
     @echo "--------------  Testing individual crate features"
-    cargo test --features geo-crate
-    cargo test --features geodesy-crate
+    cargo test --features pmtiles
+    cargo test --features geo
+    cargo test --features geodesy
     cargo test --all-features
 
 # Build and open code documentation

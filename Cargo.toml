@@ -14,19 +14,20 @@ categories = ["science::geo", "multimedia::images"]
 exclude = ["data"]
 
 [features]
-geo-crate = ["dep:geo"]
-geodesy-crate = ["dep:geodesy"]
+pmtiles = ["dep:pmt", "tile-grid", "dep:image"]
+geo = ["dep:geo"]
+geodesy = ["dep:geodesy"]
 
 [dependencies]
 geo = { version = "0.30.0", optional = true }
 geodesy = { version = "0.13.0", optional = true }
-image = "0.25.2"
-pmt = { package = "pmtiles", version = "0.15.0", default-features = false, features = [
+image = { version = "0.25.2", optional = true }
+pmt = { package = "pmtiles", version = "0.15.0", optional = true, default-features = false, features = [
     "mmap-async-tokio",
 ] }
 thiserror = "2.0.12"
 tiff = "0.9.1"
-tile-grid = "0.6.2"
+tile-grid = { version = "0.6.2", optional = true }
 
 [dev-dependencies]
 env_logger = "0.11.5"
