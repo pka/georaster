@@ -1,22 +1,26 @@
-use crate::{GeorasterResult, RasterValue};
+use crate::{Coordinate, GeorasterResult, RasterValue};
 use image::{DynamicImage, GenericImageView, ImageReader, Pixel};
 use pmt::{AsyncPmTilesReader, PmtError, TileCoord};
 use std::io::Cursor;
+use tile_grid::{tms, BoundingBox, Xyz};
 
 /// PMTiles raster reader
 pub struct PmtilesRasterReader {
     reader: AsyncPmTilesReader<pmt::MmapBackend>,
+    tms: tile_grid::Tms,
 }
 
 impl PmtilesRasterReader {
     pub async fn open(name: &str) -> GeorasterResult<Self> {
+        let tms = tms().lookup("WebMercatorQuad").unwrap();
         // Use `new_with_cached_path` for better performance
         let reader = AsyncPmTilesReader::new_with_path(name).await?;
-        Ok(Self { reader })
+        Ok(Self { reader, tms })
     }
 
-    pub async fn get_tile(&self, z: u8, x: u32, y: u32) -> GeorasterResult<DynamicImage> {
-        let coord = TileCoord::new(z, x, y).ok_or(PmtError::InvalidEntry)?;
+    pub async fn get_tile(&self, xyz: &Xyz) -> GeorasterResult<DynamicImage> {
+        let coord =
+            TileCoord::new(xyz.z, xyz.x as u32, xyz.y as u32).ok_or(PmtError::InvalidEntry)?;
         let bytes = self
             .reader
             .get_tile(coord)
@@ -29,17 +33,39 @@ impl PmtilesRasterReader {
         Ok(img)
     }
 
-    pub async fn get_pixel(
+    /// Return raster value at geographical location
+    pub async fn get_pixel_at(
         &self,
         z: u8,
-        x: u32,
-        y: u32,
-        px: u32,
-        py: u32,
+        coord: impl Into<Coordinate>,
     ) -> GeorasterResult<RasterValue> {
-        let tile = self.get_tile(z, x, y).await?;
-        let pixel = tile.get_pixel(px, py);
-        Ok(pixel.into())
+        let coord = coord.into();
+        let xyz = self.tms.tile(coord.x, coord.y, z)?;
+        let tile = self.get_tile(&xyz).await?;
+        let bounds = self.tms.bounds(&xyz)?;
+        if let Some((px, py)) = self.coord_to_pixel(&bounds, coord, tile.width(), tile.height()) {
+            Ok(tile.get_pixel(px, py).into())
+        } else {
+            Err(PmtError::InvalidEntry.into())
+        }
+    }
+
+    fn coord_to_pixel(
+        &self,
+        bounds: &BoundingBox,
+        coord: impl Into<Coordinate>,
+        w: u32,
+        h: u32,
+    ) -> Option<(u32, u32)> {
+        let (origin_x, origin_y) = (bounds.left, bounds.top);
+        let pixel_size_x = (bounds.right - bounds.left).abs() / w as f64;
+        let pixel_size_y = (bounds.top - bounds.bottom).abs() / h as f64;
+        let coord = coord.into();
+        Some((
+            ((coord.x - origin_x) / pixel_size_x).round() as u32,
+            // ((coord.y - origin_y) / pixel_size_y).round() as u32,
+            ((origin_y - coord.y) / pixel_size_y).round() as u32,
+        ))
     }
 }
 
@@ -66,26 +92,28 @@ mod tests {
     #[tokio::test]
     async fn test_tile() {
         let pmtiles = test_tiles().await;
-        assert_eq!(
-            pmtiles.get_pixel(12, 2128, 1438, 10, 10).await.unwrap(),
-            RasterValue::Rgba8(131, 4, 183, 255)
-        );
+        // Chasseral 47.133037, 7.059309 1607m
         assert_eq!(
             pmtiles
-                .get_pixel(12, 2128, 1438, 10, 10)
+                .get_tile(&Xyz::new(2128, 1438, 12))
                 .await
                 .unwrap()
-                .height(),
-            772.7176470588238
+                .width(),
+            512
         );
-        //assert_eq!(get_tile(10, 532, 359).await.unwrap().len(), 316992);
+        //assert_eq!(get_tile(&Xyz::new(532, 359, 10)).await.unwrap().len(), 316992);
     }
 
     #[tokio::test]
     async fn invalid_tiles() {
         let pmtiles = test_tiles().await;
         assert_eq!(
-            pmtiles.get_tile(12, 0, 0).await.err().unwrap().to_string(),
+            pmtiles
+                .get_tile(&Xyz::new(0, 0, 12))
+                .await
+                .err()
+                .unwrap()
+                .to_string(),
             "PMTiles error - Invalid PMTiles entry"
         );
     }
@@ -94,6 +122,13 @@ mod tests {
     async fn test_pixel() {
         let pmtiles = test_tiles().await;
         // Chasseral 47.133037, 7.059309 1607m
-        assert_eq!(pmtiles.get_tile(12, 2128, 1438).await.unwrap().width(), 512);
+        assert_eq!(
+            pmtiles
+                .get_pixel_at(12, (7.059309, 47.133037))
+                .await
+                .unwrap()
+                .height(),
+            1598.5294117647063
+        );
     }
 }
