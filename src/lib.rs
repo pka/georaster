@@ -10,6 +10,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum GeorasterError {
+    #[error("Raster value type error")]
+    ValueRange,
     #[error("Io error - {0}")]
     Io(#[from] std::io::Error),
     #[error("Tiff error - {0}")]
@@ -64,6 +66,57 @@ impl fmt::Display for RasterValue {
     }
 }
 
+impl TryFrom<RasterValue> for u64 {
+    type Error = GeorasterError;
+
+    fn try_from(value: RasterValue) -> Result<Self, Self::Error> {
+        match value {
+            RasterValue::U8(v) => Ok(v as u64),
+            RasterValue::U16(v) => Ok(v as u64),
+            RasterValue::U32(v) => Ok(v as u64),
+            RasterValue::U64(v) => Ok(v),
+            _ => Err(GeorasterError::ValueRange),
+        }
+    }
+}
+
+impl TryFrom<RasterValue> for i64 {
+    type Error = GeorasterError;
+
+    fn try_from(value: RasterValue) -> Result<Self, Self::Error> {
+        match value {
+            RasterValue::U8(v) => Ok(v as i64),
+            RasterValue::U16(v) => Ok(v as i64),
+            RasterValue::U32(v) => Ok(v as i64),
+            RasterValue::I8(v) => Ok(v as i64),
+            RasterValue::I16(v) => Ok(v as i64),
+            RasterValue::I32(v) => Ok(v as i64),
+            RasterValue::I64(v) => Ok(v),
+            _ => Err(GeorasterError::ValueRange),
+        }
+    }
+}
+
+impl TryFrom<RasterValue> for f64 {
+    type Error = GeorasterError;
+
+    fn try_from(value: RasterValue) -> Result<Self, Self::Error> {
+        match value {
+            RasterValue::U8(v) => Ok(v as f64),
+            RasterValue::U16(v) => Ok(v as f64),
+            RasterValue::U32(v) => Ok(v as f64),
+            RasterValue::U64(v) => Ok(v as f64),
+            RasterValue::F32(v) => Ok(v as f64),
+            RasterValue::F64(v) => Ok(v),
+            RasterValue::I8(v) => Ok(v as f64),
+            RasterValue::I16(v) => Ok(v as f64),
+            RasterValue::I32(v) => Ok(v as f64),
+            RasterValue::I64(v) => Ok(v as f64),
+            _ => Err(GeorasterError::ValueRange),
+        }
+    }
+}
+
 fn decode_terrarium_rgb(r: u16, g: u16, b: u16) -> f64 {
     ((r as f64) * 256. + (g as f64) + (b as f64) / 255.0) - 32768.
 }
@@ -92,7 +145,7 @@ impl RasterValue {
             RasterValue::I16(v) => *v as f64,
             RasterValue::I32(v) => *v as f64,
             RasterValue::I64(v) => *v as f64,
-            RasterValue::NoData => 0.0,
+            RasterValue::NoData => f64::NAN,
         }
     }
 
@@ -113,7 +166,34 @@ impl RasterValue {
             RasterValue::I16(v) => *v as f64,
             RasterValue::I32(v) => *v as f64,
             RasterValue::I64(v) => *v as f64,
-            RasterValue::NoData => 0.0,
+            RasterValue::NoData => f64::NAN,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn value_conversion() {
+        assert_eq!(
+            i64::try_from(RasterValue::U32(u32::MAX)).unwrap(),
+            4294967295
+        );
+        assert_eq!(f64::try_from(RasterValue::I64(-1)).unwrap(), -1.0);
+        assert_eq!(
+            u64::try_from(RasterValue::U32(u32::MAX)).unwrap(),
+            4294967295
+        );
+        assert_eq!(u64::try_from(RasterValue::NoData).ok(), None);
+    }
+
+    #[test]
+    fn height_conversion() {
+        assert_eq!(RasterValue::U32(1243).height(), 1243.);
+        assert_eq!(RasterValue::I64(-1).height(), -1.0);
+        assert_eq!(RasterValue::Rgb8(131, 4, 183).height(), 772.7176470588238);
+        assert!(RasterValue::NoData.height().is_nan());
     }
 }
