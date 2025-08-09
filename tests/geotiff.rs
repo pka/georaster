@@ -1,7 +1,4 @@
-use georaster::{
-    geotiff::{GeoTiffReader, RasterValue},
-    Coordinate,
-};
+use georaster::{geotiff::GeoTiffReader, Coordinate, RasterValue};
 use std::fs::File;
 use std::io::BufReader;
 use tiff::tags::PhotometricInterpretation;
@@ -26,7 +23,7 @@ fn single_band() {
     if let RasterValue::F32(val) = tiff.read_pixel(0, 0) {
         assert!(val.is_nan());
     } else {
-        assert!(false, "RasterValue::F32(_)")
+        panic!("RasterValue::F32(_)")
     }
 
     // x > width
@@ -544,7 +541,7 @@ fn incomplete_strips() {
         if let RasterValue::U8(f) = pixel {
             assert_eq!(f, 20 * y as u8, "Failed for pixel (x = {x}, y = {y})");
         } else {
-            panic!("Unexpected format: {:?}", pixel);
+            panic!("Unexpected format: {pixel:?}");
         }
     }
 }

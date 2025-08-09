@@ -5,6 +5,7 @@ pub mod geotiff;
 pub mod pmtiles;
 
 pub use geo::Coordinate;
+use std::fmt;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -20,3 +21,99 @@ pub enum GeorasterError {
 }
 
 pub type GeorasterResult<T> = Result<T, GeorasterError>;
+
+#[derive(PartialEq, Debug)]
+#[non_exhaustive]
+pub enum RasterValue {
+    NoData,
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    F32(f32),
+    F64(f64),
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    Rgb8(u8, u8, u8),
+    Rgba8(u8, u8, u8, u8),
+    Rgb16(u16, u16, u16),
+    Rgba16(u16, u16, u16, u16),
+}
+
+impl fmt::Display for RasterValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RasterValue::U8(v) => write!(f, "{v}"),
+            RasterValue::U16(v) => write!(f, "{v}"),
+            RasterValue::U32(v) => write!(f, "{v}"),
+            RasterValue::U64(v) => write!(f, "{v}"),
+            RasterValue::F32(v) => write!(f, "{v}"),
+            RasterValue::F64(v) => write!(f, "{v}"),
+            RasterValue::I8(v) => write!(f, "{v}"),
+            RasterValue::I16(v) => write!(f, "{v}"),
+            RasterValue::I32(v) => write!(f, "{v}"),
+            RasterValue::I64(v) => write!(f, "{v}"),
+            RasterValue::Rgb8(r, g, b) => write!(f, "({r},{g},{b})"),
+            RasterValue::Rgb16(r, g, b) => write!(f, "({r},{g},{b})"),
+            RasterValue::Rgba8(r, g, b, a) => write!(f, "({r},{g},{b},{a})"),
+            RasterValue::Rgba16(r, g, b, a) => write!(f, "({r},{g},{b},{a})"),
+            _ => write!(f, "<NoData>"),
+        }
+    }
+}
+
+fn decode_terrarium_rgb(r: u16, g: u16, b: u16) -> f64 {
+    ((r as f64) * 256. + (g as f64) + (b as f64) / 255.0) - 32768.
+}
+
+fn decode_mapbox_rgb(r: u16, g: u16, b: u16) -> f64 {
+    ((r as f64) * 256. * 256. + (g as f64) * 256. + (b as f64)) / 10.0 - 10000.0
+}
+
+impl RasterValue {
+    /// Decode Terrarium encoded RGB values to height in meters
+    pub fn height(&self) -> f64 {
+        match self {
+            RasterValue::Rgb8(r, g, b) => decode_terrarium_rgb(*r as u16, *g as u16, *b as u16),
+            RasterValue::Rgba8(r, g, b, _a) => {
+                decode_terrarium_rgb(*r as u16, *g as u16, *b as u16)
+            }
+            RasterValue::Rgb16(r, g, b) => decode_terrarium_rgb(*r, *g, *b),
+            RasterValue::Rgba16(r, g, b, _a) => decode_terrarium_rgb(*r, *g, *b),
+            RasterValue::U8(v) => *v as f64,
+            RasterValue::U16(v) => *v as f64,
+            RasterValue::U32(v) => *v as f64,
+            RasterValue::U64(v) => *v as f64,
+            RasterValue::F32(v) => *v as f64,
+            RasterValue::F64(v) => *v,
+            RasterValue::I8(v) => *v as f64,
+            RasterValue::I16(v) => *v as f64,
+            RasterValue::I32(v) => *v as f64,
+            RasterValue::I64(v) => *v as f64,
+            RasterValue::NoData => 0.0,
+        }
+    }
+
+    /// Decode Mapbox encoded RGB values to height in meters
+    pub fn height_mb(&self) -> f64 {
+        match self {
+            RasterValue::Rgb8(r, g, b) => decode_mapbox_rgb(*r as u16, *g as u16, *b as u16),
+            RasterValue::Rgba8(r, g, b, _a) => decode_mapbox_rgb(*r as u16, *g as u16, *b as u16),
+            RasterValue::Rgb16(r, g, b) => decode_mapbox_rgb(*r, *g, *b),
+            RasterValue::Rgba16(r, g, b, _a) => decode_mapbox_rgb(*r, *g, *b),
+            RasterValue::U8(v) => *v as f64,
+            RasterValue::U16(v) => *v as f64,
+            RasterValue::U32(v) => *v as f64,
+            RasterValue::U64(v) => *v as f64,
+            RasterValue::F32(v) => *v as f64,
+            RasterValue::F64(v) => *v,
+            RasterValue::I8(v) => *v as f64,
+            RasterValue::I16(v) => *v as f64,
+            RasterValue::I32(v) => *v as f64,
+            RasterValue::I64(v) => *v as f64,
+            RasterValue::NoData => 0.0,
+        }
+    }
+}

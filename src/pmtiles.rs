@@ -1,5 +1,4 @@
-use crate::geotiff::RasterValue;
-use crate::GeorasterResult;
+use crate::{GeorasterResult, RasterValue};
 use image::{DynamicImage, GenericImageView, ImageReader, Pixel};
 use pmt::{AsyncPmTilesReader, PmtError, TileCoord};
 use std::io::Cursor;
@@ -39,8 +38,18 @@ impl PmtilesRasterReader {
         py: u32,
     ) -> GeorasterResult<RasterValue> {
         let tile = self.get_tile(z, x, y).await?;
-        let [r, g, b, a] = tile.get_pixel(px, py).to_rgba().0;
-        Ok(RasterValue::Rgba8(r, g, b, a))
+        let pixel = tile.get_pixel(px, py);
+        Ok(pixel.into())
+    }
+}
+
+impl<T: Pixel<Subpixel = u8>> From<T> for RasterValue {
+    fn from(pixel: T) -> Self {
+        match (T::CHANNEL_COUNT, pixel.to_rgba().0) {
+            (3, [r, g, b, _a]) => RasterValue::Rgb8(r, g, b),
+            (4, [r, g, b, a]) => RasterValue::Rgba8(r, g, b, a),
+            _ => unimplemented!(), // TODO: Howto impl for u16, etc.?
+        }
     }
 }
 
@@ -60,6 +69,14 @@ mod tests {
         assert_eq!(
             pmtiles.get_pixel(12, 2128, 1438, 10, 10).await.unwrap(),
             RasterValue::Rgba8(131, 4, 183, 255)
+        );
+        assert_eq!(
+            pmtiles
+                .get_pixel(12, 2128, 1438, 10, 10)
+                .await
+                .unwrap()
+                .height(),
+            772.7176470588238
         );
         //assert_eq!(get_tile(10, 532, 359).await.unwrap().len(), 316992);
     }
