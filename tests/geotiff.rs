@@ -28,6 +28,7 @@ fn single_band() {
 
     // x > width
     assert_eq!(tiff.read_pixel(128, 64), RasterValue::NoData);
+    assert_eq!(f64::try_from(tiff.read_pixel(128, 64)).ok(), None);
 
     // y > height
     assert_eq!(tiff.read_pixel(64, 128), RasterValue::NoData);
@@ -68,6 +69,9 @@ fn byte() {
 
     // convert -quiet data/tiff/byte.tif[0] -crop 1x1+0+0 txt:
     assert_eq!(tiff.read_pixel(0, 0), RasterValue::U8(107));
+
+    // height
+    assert_eq!(tiff.read_pixel(0, 0).height(), 107.);
 }
 
 #[test]

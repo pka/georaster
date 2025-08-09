@@ -55,7 +55,7 @@ fn main() {
     tiff.seek_to_image(1).unwrap();
     let max_height = tiff
         .pixels(0, 0, 657, 276)
-        .map(|(_x, _y, h)| if let RasterValue::I32(v) = h { v } else { 0 })
+        .map(|(_x, _y, h)| i64::try_from(h).unwrap_or(0))
         .max();
     assert_eq!(max_height, Some(3405));
 }
