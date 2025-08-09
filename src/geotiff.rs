@@ -4,6 +4,7 @@
 // GDAL TIFF driver: https://gdal.org/drivers/raster/gtiff.html
 // GDAL COG driver: https://gdal.org/drivers/raster/cog.html
 
+use crate::GeorasterResult;
 use std::fmt;
 use std::io::{Read, Seek};
 use tiff::decoder::{ifd, Decoder, DecodingResult};
@@ -83,7 +84,7 @@ impl fmt::Display for RasterValue {
 
 impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// Open GeoTIFF and read header information
-    pub fn open(src: R) -> TiffResult<Self> {
+    pub fn open(src: R) -> GeorasterResult<Self> {
         let mut decoder = Decoder::new(src)?;
 
         // Read GeoTIFF tags
@@ -133,7 +134,7 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     }
 
     /// Load image info into reader
-    pub fn seek_to_image(&mut self, index: usize) -> TiffResult<()> {
+    pub fn seek_to_image(&mut self, index: usize) -> GeorasterResult<()> {
         self.decoder.seek_to_image(index)?;
         self.cur_image_idx = index;
         Ok(())
