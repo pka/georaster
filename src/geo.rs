@@ -62,9 +62,9 @@ impl From<[f64; 2]> for Coordinate {
 }
 
 #[cfg(feature = "geo")]
-mod geo {
+mod geo_coords {
     use super::Coordinate;
-    use geo::{coord, Coord};
+    use geo_types::{coord, Coord};
 
     impl From<Coordinate> for Coord {
         fn from(val: Coordinate) -> Self {
@@ -83,8 +83,6 @@ mod geo {
 
     #[test]
     fn geo_conversion() {
-        use geo::{coord, Coord};
-
         let coord = coord! { x: 1.2345, y: 6.7890 };
         let coordinate: Coordinate = coord.clone().into();
 
@@ -103,7 +101,7 @@ mod geo {
 }
 
 #[cfg(feature = "geodesy")]
-mod geodesy {
+mod geodesy_coords {
     use super::Coordinate;
     use geodesy::{Coor2D, CoordinateTuple};
 
@@ -124,8 +122,6 @@ mod geodesy {
 
     #[test]
     fn geodesy_conversion() {
-        use geodesy::{Coor2D, CoordinateTuple};
-
         let coor2d = Coor2D::geo(1.2345, 6.7890);
         let coordinate: Coordinate = coor2d.clone().into();
 
