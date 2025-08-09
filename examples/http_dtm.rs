@@ -1,4 +1,4 @@
-use georaster::geotiff::{GeoTiffReader, RasterValue};
+use georaster::{geotiff::GeoTiffReader, RasterValue};
 use http_range_client::HttpReader;
 
 fn main() {

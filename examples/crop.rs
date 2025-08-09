@@ -1,4 +1,4 @@
-use georaster::geotiff::{GeoTiffReader, RasterValue};
+use georaster::{geotiff::GeoTiffReader, RasterValue};
 use image::ImageBuffer;
 use std::env;
 use std::fs::File;

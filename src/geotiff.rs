@@ -4,8 +4,7 @@
 // GDAL TIFF driver: https://gdal.org/drivers/raster/gtiff.html
 // GDAL COG driver: https://gdal.org/drivers/raster/cog.html
 
-use crate::GeorasterResult;
-use std::fmt;
+use crate::{GeorasterResult, RasterValue};
 use std::io::{Read, Seek};
 use tiff::decoder::{ifd, Decoder, DecodingResult};
 use tiff::tags::{PhotometricInterpretation, PlanarConfiguration, Tag};
@@ -38,48 +37,6 @@ pub struct ImageInfo {
     // https://awaresystems.be/imaging/tiff/tifftags/planarconfiguration.html
     pub planar_config: Option<PlanarConfiguration>,
     pub samples: u8,
-}
-
-#[derive(PartialEq, Debug)]
-#[non_exhaustive]
-pub enum RasterValue {
-    NoData,
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    F32(f32),
-    F64(f64),
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
-    Rgb8(u8, u8, u8),
-    Rgba8(u8, u8, u8, u8),
-    Rgb16(u16, u16, u16),
-    Rgba16(u16, u16, u16, u16),
-}
-
-impl fmt::Display for RasterValue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RasterValue::U8(v) => write!(f, "{v}"),
-            RasterValue::U16(v) => write!(f, "{v}"),
-            RasterValue::U32(v) => write!(f, "{v}"),
-            RasterValue::U64(v) => write!(f, "{v}"),
-            RasterValue::F32(v) => write!(f, "{v}"),
-            RasterValue::F64(v) => write!(f, "{v}"),
-            RasterValue::I8(v) => write!(f, "{v}"),
-            RasterValue::I16(v) => write!(f, "{v}"),
-            RasterValue::I32(v) => write!(f, "{v}"),
-            RasterValue::I64(v) => write!(f, "{v}"),
-            RasterValue::Rgb8(r, g, b) => write!(f, "({r},{g},{b})"),
-            RasterValue::Rgb16(r, g, b) => write!(f, "({r},{g},{b})"),
-            RasterValue::Rgba8(r, g, b, a) => write!(f, "({r},{g},{b},{a})"),
-            RasterValue::Rgba16(r, g, b, a) => write!(f, "({r},{g},{b},{a})"),
-            _ => write!(f, "<NoData>"),
-        }
-    }
 }
 
 impl<R: Read + Seek + Send> GeoTiffReader<R> {
