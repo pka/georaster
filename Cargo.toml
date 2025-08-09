@@ -14,7 +14,7 @@ categories = ["science::geo", "multimedia::images"]
 exclude = ["data"]
 
 [features]
-pmtiles = ["dep:pmt", "tile-grid", "dep:image"]
+pmtiles = ["dep:pmt", "dep:tile-grid", "dep:image"]
 geo = ["dep:geo-types"]
 geodesy = ["dep:geodesy"]
 
