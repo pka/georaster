@@ -20,6 +20,8 @@ pub enum GeorasterError {
     Image(#[from] image::ImageError),
     #[error("PMTiles error - {0}")]
     Pmt(#[from] pmt::PmtError),
+    #[error("TMS error - {0}")]
+    Tms(#[from] tile_grid::TmsError),
 }
 
 pub type GeorasterResult<T> = Result<T, GeorasterError>;
@@ -193,7 +195,7 @@ mod tests {
     fn height_conversion() {
         assert_eq!(RasterValue::U32(1243).height(), 1243.);
         assert_eq!(RasterValue::I64(-1).height(), -1.0);
-        assert_eq!(RasterValue::Rgb8(131, 4, 183).height(), 772.7176470588238);
+        assert_eq!(RasterValue::Rgb8(134, 65, 215).height(), 1601.843137254902);
         assert!(RasterValue::NoData.height().is_nan());
     }
 }
