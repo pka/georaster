@@ -5,6 +5,7 @@
 // GDAL COG driver: https://gdal.org/drivers/raster/cog.html
 
 use crate::{GeorasterResult, RasterValue};
+use std::cell::RefCell;
 use std::io::{Read, Seek};
 use tiff::decoder::{ifd, Decoder, DecodingResult};
 use tiff::tags::{PhotometricInterpretation, PlanarConfiguration, Tag};
@@ -14,7 +15,7 @@ use crate::Coordinate;
 
 /// GeoTIFF file reader
 pub struct GeoTiffReader<R: Read + Seek> {
-    decoder: Decoder<R>,
+    decoder: RefCell<Decoder<R>>,
     band_idx: u8,
     images: Vec<ImageInfo>,
     /// Current image in Decoder
@@ -66,7 +67,7 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         let cur_image_idx = images.len() - 1;
 
         let reader = GeoTiffReader {
-            decoder,
+            decoder: RefCell::new(decoder),
             band_idx: 0,
             images,
             cur_image_idx,
@@ -92,7 +93,7 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
 
     /// Load image info into reader
     pub fn seek_to_image(&mut self, index: usize) -> GeorasterResult<()> {
-        self.decoder.seek_to_image(index)?;
+        self.decoder.get_mut().seek_to_image(index)?;
         self.cur_image_idx = index;
         Ok(())
     }
@@ -120,26 +121,26 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     }
 
     /// Image dimensions or (0, 0) if undefined.
-    fn dimensions_or_zero(&mut self) -> (u32, u32) {
-        self.decoder.dimensions().unwrap_or((0, 0))
+    fn dimensions_or_zero(&self) -> (u32, u32) {
+        self.decoder.borrow_mut().dimensions().unwrap_or((0, 0))
     }
 
     /// Returns the default chunk size for the current image.
     fn chunk_dimensions(&self) -> (u32, u32) {
-        self.decoder.chunk_dimensions()
+        self.decoder.borrow().chunk_dimensions()
     }
 
     /// band count of current image.
-    fn num_bands(&mut self) -> u8 {
+    fn num_bands(&self) -> u8 {
         self.image_info().samples
     }
 
     /// Samples per pixel
-    fn spp(&mut self) -> u8 {
+    fn spp(&self) -> u8 {
         match self.image_info().planar_config {
             Some(PlanarConfiguration::Planar) => 1,
             _ => {
-                match self.decoder.colortype() {
+                match self.decoder.borrow_mut().colortype() {
                     Ok(tiff::ColorType::Gray(_)) => 1,
                     Ok(tiff::ColorType::RGB(_)) => 3,
                     Ok(tiff::ColorType::RGBA(_)) => 4,
@@ -156,11 +157,11 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// use georaster::geotiff::GeoTiffReader;
     ///
     /// let img_file = BufReader::new(File::open("data/tiff/utm.tif").unwrap());
-    /// let mut tiff = GeoTiffReader::open(img_file).unwrap();
+    /// let tiff = GeoTiffReader::open(img_file).unwrap();
     ///
     /// let value = tiff.read_pixel(0, 0);
     /// ```
-    pub fn read_pixel(&mut self, x: u32, y: u32) -> RasterValue {
+    pub fn read_pixel(&self, x: u32, y: u32) -> RasterValue {
         let image_dims = self.dimensions_or_zero();
         if x >= image_dims.0 || y >= image_dims.1 {
             return RasterValue::NoData;
@@ -171,7 +172,7 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
         let chunk_index = tiles.get_chunk_index(x, y, self.band_idx);
         let spp = self.spp();
         let offset = tiles.get_chunk_offset(chunk_index, x, y, spp);
-        let chunk = self.decoder.read_chunk(chunk_index).unwrap();
+        let chunk = self.decoder.borrow_mut().read_chunk(chunk_index).unwrap();
         raster_value(&chunk, offset, spp)
     }
 
@@ -185,12 +186,12 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// use georaster::{Coordinate, geotiff::GeoTiffReader};
     ///
     /// let img_file = BufReader::new(File::open("data/tiff/utm.tif").unwrap());
-    /// let mut tiff = GeoTiffReader::open(img_file).unwrap();
+    /// let tiff = GeoTiffReader::open(img_file).unwrap();
     ///
     /// let location = Coordinate { x: 0.0, y: 0.0 };
     /// let value = tiff.read_pixel_at_location(location);
     /// ```
-    pub fn read_pixel_at_location(&mut self, coord: impl Into<Coordinate>) -> RasterValue {
+    pub fn read_pixel_at_location(&self, coord: impl Into<Coordinate>) -> RasterValue {
         if let Some((x, y)) = self.coord_to_pixel(coord) {
             self.read_pixel(x, y)
         } else {
@@ -201,14 +202,14 @@ impl<R: Read + Seek + Send> GeoTiffReader<R> {
     /// Returns an Iterator over the pixels of an image part.
     /// The iterator yields the coordinates of each pixel
     /// along with their value
-    pub fn pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Pixels<R> {
+    pub fn pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Pixels<'_, R> {
         let image_dims = self.dimensions_or_zero();
-        let chunk_dims = self.decoder.chunk_dimensions();
+        let chunk_dims = self.decoder.borrow().chunk_dimensions();
         let dims =
             TileAttributes::from_dims(image_dims, chunk_dims, self.image_info().planar_config);
         let spp = self.spp();
         Pixels {
-            decoder: &mut self.decoder,
+            decoder: self.decoder.get_mut(),
             chunk: Err(TiffError::LimitsExceeded),
             offset: 0,
             x,

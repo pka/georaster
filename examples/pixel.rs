@@ -16,7 +16,7 @@ fn main() {
         .expect("Y required");
 
     let img_file = BufReader::new(File::open(src_fn).expect("Open input file"));
-    let mut tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
+    let tiff = GeoTiffReader::open(img_file).expect("Open Tiff");
     let pixel = tiff.read_pixel(x, y);
     println!("{pixel}");
 }

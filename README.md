@@ -11,7 +11,7 @@ Rust library for accessing geospatial raster images.
 Read height pixel value from GeoTIFF:
 ```rust
 let img_file = BufReader::new(File::open("N265E425.tif").unwrap());
-let mut tiff = GeoTiffReader::open(img_file).unwrap();
+let tiff = GeoTiffReader::open(img_file).unwrap();
 let height = tiff.read_pixel(x, y).height();
 ```
 
